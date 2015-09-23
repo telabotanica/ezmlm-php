@@ -1,0 +1,133 @@
+This is the original README file distibuted with ezmlm-php.
+
+ezmlm-php 2.0
+Nov 13, 2002
+http://www.unixpimps.org/software/ezmlm-php
+
+ezmlm-php is a group of files written in php that allow you to fetch messages
+from a ezmlm mailing list archive via a web page. It is fully customizable so
+it can fit into an existing layout design very well, it is also self contained
+so that you can run it with no existing site setup.
+
+The new version has been rewritten from the ground up to exclude all external
+dependancies (except one which comes with the source, see makehash later on)
+and now implements RFC2045 MIME parsing in pure PHP.
+The system is now also object based to allow greater flexibility within the
+code itself, it also makes the code much more managable and readable.
+
+
+INSTALLATION
+~~~~~~~~~~~~
+*NOTE*
+The installation of ezmlm-php now requires access to a compiler to build the
+included makehash program. See the MAKEHASH section at the end.
+
+1. Unpack the tarball and copy the files to your webroot in the directory you
+   want the list to be accessed from. For example using /home/www/mailinglist
+
+   gzip -d ezmlm-php-2.0.tar.gz
+   tar xvf ezmlm-php.2.0.tar
+   cd /home/www/mailinglist
+   cp ~/ezmlm-php-2.0/*.php .
+   cp ~/ezmlm-php-2.0/*.def .
+
+2. Build the included makehash program.
+
+   cd ~/ezmlm-php-2.0
+   gzip -d makehash.tar.gz
+   tar xvf makehash.tar
+   cd makehash
+   make
+
+   If you do not have compiler access check the binaries directory in the
+   makehash.tar file as there are some common binaries there. If you build
+   makehash on a new platform please feel free to submit the binary for
+   inclusion.
+
+3. Move the resulting binary to your webroot.
+
+4. Edit ezmlm.php and change the user configurable options. Search for
+   USER-CONFIG to find where to edit. See CONFIGURATION below.
+
+5. Access www.yoursite.com/mailinglist to test the installation.
+
+
+CONFIGURATION
+~~~~~~~~~~~~~
+This section will explain each variable. If you used the last version most
+of these are the exact same.
+
+Name		Meaning
+~~~~~~~~~~	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+listdir		This variable should be pointed at the root of the ezmlm
+		archive. For instance /usr/home/lists/ragga-jungle
+
+listname	The name of the list (everything before the @)
+
+listdomain	The domain name of the list
+
+tempdir		Where to store the cache files. /var/tmp should be fine
+		for most installations. /tmp is another choice.
+
+sendheaders	If set to TRUE then ezmlm will generate the nessesary
+		page headers. If set to FALSE your header file needs to
+		generate them. See 'includebefore'
+
+sendbody	If set to TRUE then ezmlm will generate the <body></body>
+		tags.
+
+sendfooters	If set to TRUE then ezmlm will generate the tage needed
+		to finish the document. If set to FALSE your footer file
+		needs to generate them. See 'includeafter'
+
+includebefore	This is a file that will be included before ezmlm-php
+		generates any output. You can have ezmlm-php generate
+		the nessesary headers (sendheaders = TRUE) and still
+		include a file of your own. The file is included by the
+		include_once function.
+
+includeafter	This is the exact same as includebefore except the file
+		is included after ezmlm-php has sent all of it's data.
+
+href		This is a string to prepend to the path whenever an
+		<a href= tag is generated. This option was added to fix
+		the problem of using a <base href= tag.
+
+prefertype	This is the mime type that you wish to send if the
+		current message is a multipart message. If this type isn't
+		found it defaults to the first part.
+ 		Some examples are: text/html, text/plain, etc...
+
+showheaders	This is an array of the headers to show. You can add or
+		remove any valid RFC822 header you wish to this array.
+		Some examples: X-Mailer, Message-ID
+		(This is case-insensitive)
+
+msgtemplate	This is a file to use as the message template, if blank
+		the internal one is used. See the file MSGTEMPLATE for
+		more information as it is to much to describe here.
+
+tablescolours	This is an array of colour hex triplets for use when a
+		table is generated. For each row that is generated the
+		next colour is used, just use a single element if you
+		don't want alternating colours.
+		(Yes there is a U in colours, the software was written
+		in Canada ;)
+
+thread_subjlen	This is an integer that tells the software how many
+		characters to allow the subjects when displayed in
+		threads or on the info page. This is useful if you
+		want to limit subjects to a certain length so that no
+		line wrapping occurs.
+
+
+MAKEHASH
+~~~~~~~~
+So what is this little binary you need to build? Simply put it is a small
+little C program to generate the nessesary ezmlm-idx hashes for cross
+referencing authors. In the last version this was done by recursivley doing
+a grep on the /authors directory which isn't very efficient when the list
+subscriber base grows above 1000 or so. This program computes the hash by
+using the same algorithim the software does and speeds things up a lot.
+
+-FIN-
