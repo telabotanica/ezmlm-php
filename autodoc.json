@@ -1,0 +1,13 @@
+{
+	"service": "ezmlm",
+	"uri-patterns": [
+		[
+			"GET __ROOTURI__lists",
+			"Returns a list of the available lists"
+		],
+		[
+			"GET __ROOTURI__lists/listname",
+			"Returns information about a list"
+		]
+	]
+}

@@ -1,0 +1,4 @@
+{
+	"domain_root" : "http://localhost",
+	"base_uri" : "/ezmlm-php"
+}

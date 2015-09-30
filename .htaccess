@@ -1,0 +1,4 @@
+SetEnv no-gzip dont-vary
+# REST : toutes les URL sont interprétées par index.php
+RewriteEngine on
+RewriteRule ^(.+)$ index.php

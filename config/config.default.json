@@ -1,0 +1,22 @@
+{
+	"storageAdapter": "StockageTB",
+	"authAdapter": "AuthTB",
+	"adapters": {
+		"StockageTB": {
+			"db": {
+				"host": "localhost",
+				"port": "3306",
+				"dbname": "cumulus",
+				"username": "",
+				"password": ""
+			},
+			"storage_root": "/home/fernand/path/to/storage"
+		},
+		"AuthTB": {
+			"AnnuaireURL": "https://localhost/service:annuaire:auth",
+			"admins": [
+				"john@mywebsite.org"
+			]
+		}
+	}
+}
