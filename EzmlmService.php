@@ -27,10 +27,9 @@ class EzmlmService extends BaseService {
 	protected $messageId;
 
 	public function __construct() {
+		parent::__construct();
 		// Ezmlm lib
 		$this->lib = new Ezmlm();
-
-		parent::__construct();
 	}
 
 	/**
@@ -90,23 +89,24 @@ class EzmlmService extends BaseService {
 			return false;
 		}
 
-		$firstResource = $this->resources[0];
+		$firstResource = array_shift($this->resources);
 		// currently only "lists" is supported
 		switch($firstResource) {
 			case "lists":
-				// list name ?
-				if (count($this->resources) == 1) {
+				// no more resources ?
+				if (count($this->resources) == 0) {
 					$this->getLists();
 				} else {
 					// storing list name
-					$this->listName = $this->resources[1];
+					$this->listName = array_shift($this->resources);
 					// defining list name once for all
 					$this->lib->setListName($this->listName);
 					// no more resources ?
-					if (count($this->resources) == 2) {
+					if (count($this->resources) == 0) {
 						$this->getListInfo();
 					} else { // moar !!
-						switch ($this->resources[2]) {
+						$nextResource = array_shift($this->resources);
+						switch ($nextResource) {
 							case 'options':
 								$this->getListOptions();
 								break;
@@ -160,19 +160,24 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function getSubscribers() {
-		$count = (!empty($this->resources[3]) && ($this->resources[3] == "count"));
+		// "count" switch ?
+		$count = ($this->getParam('count') !== null);
 		echo "getSubscribers(); count : "; var_dump($count);
 		$this->lib->getSubscribers($count);
 	}
 
 	protected function getPosters() {
-		echo "getPosters()";
-		$this->lib->getPosters();
+		// "count" switch ?
+		$count = ($this->getParam('count') !== null);
+		echo "getPosters(); count : "; var_dump($count);
+		$this->lib->getPosters($count);
 	}
 
 	protected function getModerators() {
-		echo "getModerators()";
-		$this->lib->getModerators();
+		// "count" switch ?
+		$count = ($this->getParam('count') !== null);
+		echo "getModerators(); count : "; var_dump($count);
+		$this->lib->getModerators($count);
 	}
 
 	/**
@@ -180,19 +185,19 @@ class EzmlmService extends BaseService {
 	 */
 	protected function getByTopics() {
 		// no more resources ?
-		if (count($this->resources) == 3) {
+		if (count($this->resources) == 0) {
 			// "count" switch ?
 			$count = ($this->getParam('count') !== null);
 			$this->getAllTopics($count);
 		} else {
 			// storing topic name
-			$this->topicName = $this->resources[3];
+			$this->topicName = array_shift($this->resources);
 			// no more resoures ?
-			if (count($this->resources) == 4) {
+			if (count($this->resources) == 0) {
 				$this->getTopicInfo();
 			} else {
-				$fifthResource = $this->resources[4];
-				switch ($fifthResource) {
+				$nextResource = array_shift($this->resources);
+				switch ($nextResource) {
 					case "messages":
 						$this->getMessagesByTopic();
 						break;
@@ -204,25 +209,38 @@ class EzmlmService extends BaseService {
 		}
 	}
 
+	protected function getAllTopics() {
+		echo "getAllTopics()";
+	}
+
+	protected function getTopicInfo() {
+		echo "getTopicInfo()";
+	}
+
+	protected function getMessagesByTopic() {
+		// @TODO detect /last, /search, /id/(next|previous) et ?count
+		echo "getMessagesByTopic()";
+	}
+
 	/**
 	 * Entry point for /authors/* URIs
 	 */
 	protected function getByAuthors() {
 		// no more resources ?
-		if (count($this->resources) == 3) {
+		if (count($this->resources) == 0) {
 			// list all authors in a list (having written at least once)
 			// "count" switch ?
 			$count = ($this->getParam('count') !== null);
 			$this->getAllAuthors($count);
 		} else {
 			// storing author's email
-			$this->authorEmail = $this->resources[3];
+			$this->authorEmail = array_shift($this->resources);
 			// no more resoures ?
-			if (count($this->resources) == 4) {
+			if (count($this->resources) == 0) {
 				$this->getAuthorInfo();
 			} else {
-				$fifthResource = $this->resources[4];
-				switch ($fifthResource) {
+				$nextResource = array_shift($this->resources);
+				switch ($nextResource) {
 					case "topics":
 						$this->getTopicsByAuthor();
 						break;
@@ -237,18 +255,34 @@ class EzmlmService extends BaseService {
 		}
 	}
 
+	protected function getAllAuthors() {
+		echo "getAllAuthors()";
+	}
+
+	protected function getAuthorInfo() {
+		echo "getAuthorInfo()";
+	}
+
+	protected function getTopicsByAuthor() {
+		// @TODO detect /last et ?count
+	}
+
+	protected function getMessagesByAuthor() {
+		// @TODO detect /last, /search, /id/(next|previous) et ?count
+	}
+
 	/**
 	 * Entry point for /messages/* URIs
 	 */
 	protected function getByMessages() {
 		// no more resources ?
-		if (count($this->resources) == 3) {
+		if (count($this->resources) == 0) {
 			// "count" switch ?
 			$count = ($this->getParam('count') !== null);
 			$this->getAllMessages($count);
 		} else {
-			$fourthResource = $this->resources[3];
-			switch ($fourthResource) {
+			$nextResource = array_shift($this->resources);
+			switch ($nextResource) {
 				case "last":
 					$this->getLastMessages();
 					break;
@@ -257,15 +291,15 @@ class EzmlmService extends BaseService {
 					break;
 				default:
 					// this should be a message id
-					if (is_numeric($fourthResource)) {
+					if (is_numeric($nextResource)) {
 						// storing message id
-						$this->messageId = $fourthResource;
+						$this->messageId = $nextResource;
 						// no more resoures ?
-						if (count($this->resources) == 4) {
+						if (count($this->resources) == 0) {
 							$this->getMessage();
 						} else {
-							$fifthResource = $this->resources[4];
-							switch ($fifthResource) {
+							$nextResource = array_shift($this->resources);
+							switch ($nextResource) {
 								case "next":
 									$this->getNextMessage();
 									break;
@@ -285,6 +319,29 @@ class EzmlmService extends BaseService {
 		}
 	}
 
+	protected function getAllMessages() {
+		echo "getAllMessages()";
+	}
+
+	protected function getLastMessages() {
+		echo "getLastMessages()";
+	}
+
+	protected function searchMessages() {
+		echo "searchMessages()";
+	}
+
+	protected function getMessage() {
+		echo "getMessage()";
+	}
+
+	protected function getNextMessage() {
+		echo "getNextMessage()";
+	}
+
+	protected function getPreviousMessage() {
+		echo "getPreviousMessage()";
+	}
 
 	/**
 	 * GET http://tb.org/cumulus.php/by-name/compte rendu
@@ -369,6 +426,14 @@ class EzmlmService extends BaseService {
 		}
 	}
 
+	protected function modifyList() {
+		echo "modifyList()";
+	}
+
+	protected function modifyListOptions() {
+		echo "modifyListOptions()";
+	}
+
 	// lists, subscribers, posters, moderators
 	protected function post() {
 		// we need at least one resource
@@ -397,6 +462,22 @@ class EzmlmService extends BaseService {
 		}
 	}
 
+	protected function addList() {
+		echo "addList()";
+	}
+
+	protected function addSubscriber() {
+		echo "addSubscriber()";
+	}
+
+	protected function addPoster() {
+		echo "addPoster()";
+	}
+
+	protected function addModerator() {
+		echo "addModerator()";
+	}
+
 	// list, subscriber, poster, moderator, message
 	protected function delete() {
 		// we need at least one resource
@@ -420,12 +501,32 @@ class EzmlmService extends BaseService {
 				$this->deleteModerator();
 				break;
 			case "messages":
-				$this->deleteModerator();
+				$this->deleteMessage();
 				break;
 			default:
 				$this->usage();
 				return false;
 		}
+	}
+
+	protected function deleteList() {
+		echo "deleteList()";
+	}
+
+	protected function deleteSubscriber() {
+		echo "deleteSubscriber()";
+	}
+
+	protected function deletePoster() {
+		echo "deletePoster()";
+	}
+
+	protected function deleteModerator() {
+		echo "deleteModerator()";
+	}
+
+	protected function deleteMessage() {
+		echo "deleteMessage()";
 	}
 
 	protected function options() {
