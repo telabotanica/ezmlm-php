@@ -77,8 +77,8 @@ class Ezmlm {
 	protected function fileExistsInDir($fileName, $dir) {
 		$dirP = opendir($dir);
 		$exists = false;
-		while ($file = readdir($dirP) && ! $exists) {
-			$exists = $exists && ($file == $fileName);
+		while (($file = readdir($dirP)) && ! $exists) {
+			$exists = ($exists || ($file == $fileName));
 		}
 		return $exists;
 	}
@@ -87,12 +87,15 @@ class Ezmlm {
 		$dirP = opendir('.');
 		$lists = array();
 		while ($subdir = readdir($dirP)) {
-			// presence of "lock" file means this is a list (ezmlm-web's strategy)
-			if ($this->fileExistsInDir('lock', $subdir)) {
-				$lists[] = $subdir;
+			if (is_dir($subdir) && substr($subdir, 0, 1) != '.') {
+				// presence of "lock" file means this is a list (ezmlm-web's strategy)
+				if ($this->fileExistsInDir('lock', $subdir)) {
+					$lists[] = $subdir;
+				}
 			}
 		}
 		closedir($dirP);
+		sort($lists); // @TODO ignore case ?
 		return $lists;
 	}
 }
