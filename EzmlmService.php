@@ -52,13 +52,13 @@ class EzmlmService extends BaseService {
 	 * A version of explode() that preserves NULL values - allows to make the
 	 * difference between '' and NULL in multiple parameters, like "keywords"
 	 */
-	protected function explode($delimiter, $string) {
+	/*protected function explode($delimiter, $string) {
 		if ($string === null) {
 			return null;
 		} else {
 			return explode($delimiter, $string);
 		}
-	}
+	}*/
 
 	/**
 	 * Service autodescription
@@ -73,7 +73,8 @@ class EzmlmService extends BaseService {
 					$up[$k] = str_replace("__ROOTURI__", $rootUri, $up[$k]);
 				}
 			}
-			$this->sendJson($infos);
+			// calling usage() implies that a bad request was sent
+			$this->sendError($infos);
 		} else {
 			$this->sendError("wrong URI");
 		}
@@ -145,7 +146,10 @@ class EzmlmService extends BaseService {
 	 * Returns a list of the available lists
 	 */
 	protected function getLists() {
-		$this->sendJson("list of lists !");
+		//echo "list of lists !";
+
+		$lists = $this->lib->getLists();
+		$this->sendMultipleResults($lists);
 	}
 
 	/**
@@ -405,6 +409,8 @@ class EzmlmService extends BaseService {
 	 */
 	protected function put() {
 		$this->sendError("PUT is not supported at the moment", 405);
+		// positive response by default
+		http_response_code(200);
 
 		// we need at least one resource
 		if (count($this->resources) < 1) {
@@ -436,6 +442,9 @@ class EzmlmService extends BaseService {
 
 	// lists, subscribers, posters, moderators
 	protected function post() {
+		// positive response by default
+		http_response_code(201);
+
 		// we need at least one resource
 		if (count($this->resources) < 1) {
 			$this->usage();
@@ -480,6 +489,9 @@ class EzmlmService extends BaseService {
 
 	// list, subscriber, poster, moderator, message
 	protected function delete() {
+		// positive response by default
+		http_response_code(200);
+
 		// we need at least one resource
 		if (count($this->resources) < 1) {
 			$this->usage();
