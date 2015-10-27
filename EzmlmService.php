@@ -156,7 +156,9 @@ class EzmlmService extends BaseService {
 	 * Returns information about a list
 	 */
 	protected function getListInfo() {
-		echo "info for list [" . $this->listName . "]";
+		//echo "info for list [" . $this->listName . "]";
+		$options = $this->lib->getListInfo();
+		var_dump($options);
 	}
 
 	protected function getListOptions() {
@@ -451,39 +453,67 @@ class EzmlmService extends BaseService {
 			return false;
 		}
 
-		$firstResource = $this->resources[0];
+		// read JSON data from request body
+		$data = $this->readRequestBody();
+		$jsonData = null;
+		if (! empty($data)) {
+			$jsonData = json_decode($data, true);
+		}
+
+		$firstResource = array_shift($this->resources);
 		switch($firstResource) {
 			case "lists":
-				$this->addList();
-				break;
-			case "subscribers":
-				$this->addSubscriber();
-				break;
-			case "posters":
-				$this->addPoster();
-				break;
-			case "moderators":
-				$this->addModerator();
-				break;
+				// no more resources ?
+				if (count($this->resources) == 0) {
+					$this->addList($jsonData);
+				} else {
+					// storing list name
+					$this->listName = array_shift($this->resources);
+					// defining list name once for all
+					$this->lib->setListName($this->listName);
+
+					// no more resources ?
+					if (count($this->resources) == 0) {
+						$this->usage();
+						return false;
+					} else {
+						$nextResource = array_shift($this->resources);
+						switch ($nextResource) {
+							case "subscribers":
+								$this->addSubscriber($jsonData);
+								break;
+							case "posters":
+								$this->addPoster($jsonData);
+								break;
+							case "moderators":
+								$this->addModerator($jsonData);
+								break;
+							default:
+								$this->usage();
+								return false;
+						}
+					}
+				}
 			default:
 				$this->usage();
 				return false;
 		}
 	}
 
-	protected function addList() {
-		echo "addList()";
+	protected function addList($data) {
+
+		echo "addList(): " . $this->listName;
 	}
 
-	protected function addSubscriber() {
+	protected function addSubscriber($data) {
 		echo "addSubscriber()";
 	}
 
-	protected function addPoster() {
+	protected function addPoster($data) {
 		echo "addPoster()";
 	}
 
-	protected function addModerator() {
+	protected function addModerator($data) {
 		echo "addModerator()";
 	}
 

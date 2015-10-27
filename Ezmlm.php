@@ -7,7 +7,10 @@ class Ezmlm {
 
 	/** JSON config */
 	protected $config = array();
-	public static $CHEMIN_CONFIG = "config/config.json";
+	public static $CONFIG_PATH = "config/config.json";
+
+	/** ezmlm-idx tools path */
+	protected $ezmlmIdxPath;
 
 	/** Authentication management */
 	protected $authAdapter;
@@ -20,15 +23,14 @@ class Ezmlm {
 
 	public function __construct() {
 		// config
-		if (file_exists(self::$CHEMIN_CONFIG)) {
-			$this->config = json_decode(file_get_contents(self::$CHEMIN_CONFIG), true);
+		if (file_exists(self::$CONFIG_PATH)) {
+			$this->config = json_decode(file_get_contents(self::$CONFIG_PATH), true);
 		} else {
-			throw new Exception("file " . self::$CHEMIN_CONFIG . " doesn't exist");
+			throw new Exception("file " . self::$CONFIG_PATH . " doesn't exist");
 		}
 
-		// default domain
-		$this->domain = $this->config['ezmlm']['domain'];
-		$this->chdirToDomain();
+		// ezmlm-idx tools path configuration
+		$this->ezmlmIdxPath = $this->config['ezmlm-idx']['binariesPath'];
 
 		// authentication adapter / rights management
 		$this->authAdapter = null;
@@ -44,6 +46,9 @@ class Ezmlm {
 			// passing config to the adapter - 
 			$this->authAdapter = new $authAdapterName($this->config);
 		}
+
+		// default domain
+		$this->setDomain($this->config['ezmlm']['domain']);
 	}
 
 	/**
@@ -54,7 +59,7 @@ class Ezmlm {
 		chdir($domainFolder);
 	}
 
-	public function setDomaine($domain) {
+	public function setDomain($domain) {
 		$this->domain = $domain;
 		$this->chdirToDomain();
 	}
@@ -72,6 +77,50 @@ class Ezmlm {
 	}
 
 	/**
+	 * ret : Run ezmlm-idx Tool
+	 * Runs an ezmlm-idx binary, located in $this->ezmlmIdxPath
+	 */
+	public function rt($toolAndOptionsString, &$stdout, &$stderr) {
+		// sanitize
+		if (strpos($toolAndOptionsString, "..") !== false || strpos($toolAndOptionsString, "/") !== false) {
+			throw new Exception("forbidden command: [$toolAndOptionsString]");
+		}
+
+		// prepare proces opening
+		$descriptorspec = array(
+			0 => array("pipe", "r"),
+			1 => array("pipe", "w"),
+			2 => array("pipe", "w")
+		);  
+		// cautiousness
+		$cwd = '/tmp';
+
+		$process = proc_open($this->ezmlmIdxPath . '/' . $toolAndOptionsString, $descriptorspec, $pipes, $cwd);
+
+		if (is_resource($process)) {
+			// optionally write something to stdin
+			fclose($pipes[0]);
+
+			$stdout = stream_get_contents($pipes[1]);
+			//echo $stdout;
+			fclose($pipes[1]);
+			//echo "\n";
+
+			$stderr = stream_get_contents($pipes[2]);
+			//echo $stderr;
+			fclose($pipes[2]);
+
+			// It is important that you close any pipes before calling
+			// proc_close in order to avoid a deadlock
+			$return_value = proc_close($process);
+
+			return $return_value;
+		} else {
+			throw new Exception('rt(): cound not create process');
+		}
+	}
+
+	/**
 	 * Returns true if $fileName exists in directory $dir, false otherwise
 	 */
 	protected function fileExistsInDir($fileName, $dir) {
@@ -82,6 +131,8 @@ class Ezmlm {
 		}
 		return $exists;
 	}
+
+	// ------------------ API METHODS -----------------------------
 
 	public function getLists() {
 		$dirP = opendir('.');
@@ -97,5 +148,10 @@ class Ezmlm {
 		closedir($dirP);
 		sort($lists); // @TODO ignore case ?
 		return $lists;
+	}
+
+	public function getListInfo() {
+		$this->rt("ezmlm-get", $out, $err);
+		echo "Out: $out\nErr: $err";
 	}
 }
