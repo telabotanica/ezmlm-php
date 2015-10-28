@@ -15,11 +15,20 @@ class Ezmlm {
 	/** Authentication management */
 	protected $authAdapter;
 
-	/** current mailing list domain (eg my-domain.org) */
-	protected $domain;
+	/** absolute path of domains root (eg vpopmail's "domains" folder) */
+	protected $domainsPath;
 
-	/** current mailing list */
+	/** current mailing list domain (eg "my-domain.org") */
+	protected $domainName;
+
+	/** absolute path of current domain @TODO rename not to confuse with $domainsPath ? */
+	protected $domainPath;
+
+	/** current mailing list (eg "my-list") */
 	protected $listName;
+
+	/** absolute path of current mailing list */
+	protected $listPath;
 
 	public function __construct() {
 		// config
@@ -47,6 +56,8 @@ class Ezmlm {
 			$this->authAdapter = new $authAdapterName($this->config);
 		}
 
+		// domains path
+		$this->domainsPath = $this->config['ezmlm']['domainsPath'];
 		// default domain
 		$this->setDomain($this->config['ezmlm']['domain']);
 	}
@@ -55,35 +66,20 @@ class Ezmlm {
 	 * Sets current directory to the current domain directory
 	 */
 	protected function chdirToDomain() {
-		$domainFolder = $this->config['ezmlm']['domainsPath'] . '/' . $this->domain;
-		chdir($domainFolder);
-	}
-
-	public function setDomain($domain) {
-		$this->domain = $domain;
-		$this->chdirToDomain();
-	}
-
-	public function getDomain() {
-		return $this->domain;
-	}
-
-	public function setListName($listName) {
-		$this->listName = $listName;
-	}
-
-	public function getListName() {
-		return $this->listName;
+		if (! is_dir($this->domainPath)) {
+			throw new Exception("domain path: cannot access directory [" . $this->domainPath . "]");
+		}
+		chdir($this->domainPath);
 	}
 
 	/**
-	 * ret : Run ezmlm-idx Tool
 	 * Runs an ezmlm-idx binary, located in $this->ezmlmIdxPath
+	 * Output parameters are optional to reduce memory consumption
 	 */
-	public function rt($toolAndOptionsString, &$stdout, &$stderr) {
-		// sanitize
-		if (strpos($toolAndOptionsString, "..") !== false || strpos($toolAndOptionsString, "/") !== false) {
-			throw new Exception("forbidden command: [$toolAndOptionsString]");
+	protected function runEzmlmTool($tool, $optionsString, &$stdout=false, &$stderr=false) {
+		// sanitize @TODO externalize and improve
+		if (strpos($tool, "..") !== false || strpos($tool, "/") !== false) {
+			throw new Exception("forbidden command: [$tool]");
 		}
 
 		// prepare proces opening
@@ -95,19 +91,23 @@ class Ezmlm {
 		// cautiousness
 		$cwd = '/tmp';
 
-		$process = proc_open($this->ezmlmIdxPath . '/' . $toolAndOptionsString, $descriptorspec, $pipes, $cwd);
+		$process = proc_open($this->ezmlmIdxPath . '/' . $tool . ' ' . $optionsString, $descriptorspec, $pipes, $cwd);
 
 		if (is_resource($process)) {
 			// optionally write something to stdin
 			fclose($pipes[0]);
 
-			$stdout = stream_get_contents($pipes[1]);
-			//echo $stdout;
+			if ($stdout !== false) {
+				$stdout = stream_get_contents($pipes[1]);
+				//echo $stdout;
+			}
 			fclose($pipes[1]);
 			//echo "\n";
 
-			$stderr = stream_get_contents($pipes[2]);
-			//echo $stderr;
+			if ($stderr !== false) {
+				$stderr = stream_get_contents($pipes[2]);
+				//echo $stderr;
+			}
 			fclose($pipes[2]);
 
 			// It is important that you close any pipes before calling
@@ -118,6 +118,28 @@ class Ezmlm {
 		} else {
 			throw new Exception('rt(): cound not create process');
 		}
+	}
+
+	/**
+	 * rt : Run ezmlm-idx tool; convenience method for runEzmlmTool()
+	 * Throws an exception containing stderr if the command returns something else that 0;
+	 * otherwise, returns true if $returnStdout is false (default), stdout otherwise
+	 */
+	protected function rt($tool, $optionsString, $returnStdout=false) {
+		$ret = false;
+		$stdout = $returnStdout;
+		$stderr = null;
+		// "smart" call to reduce memory consumption
+		$ret = $this->runEzmlmTool($tool, $optionsString, $stdout, $stderr);
+		// catch command error
+		if ($ret !== 0) {
+			throw new Exception($stderr);
+		}
+		// mixed return
+		if ($returnStdout) {
+			return $stdout;
+		}
+		return true;
 	}
 
 	/**
@@ -132,7 +154,45 @@ class Ezmlm {
 		return $exists;
 	}
 
+	protected function isValidEmail($email) {
+		return filter_var($email, FILTER_VALIDATE_EMAIL);
+	}
+
 	// ------------------ API METHODS -----------------------------
+
+	/**
+	 * Sets the current domain to $domain and recomputes paths
+	 */
+	public function setDomain($domain) {
+		$this->domainName = $domain;
+		$this->domainPath = $this->domainsPath . '/' . $this->domainName;
+		$this->chdirToDomain();
+	}
+
+	/**
+	 * Returns the current domain (should always be set)
+	 */
+	public function getDomain() {
+		return $this->domainName;
+	}
+
+	/**
+	 * Sets the current list to $listName and recomputes paths
+	 */
+	public function setListName($listName) {
+		$this->listName = $listName;
+		if (! is_dir($this->domainPath)) {
+			throw new Exception("please set a valid domain path before setting list name (current domain path: [" . $this->domainPath . "])");
+		}
+		$this->listPath = $this->domainPath . '/' . $this->listName;
+	}
+
+	/**
+	 * Returns the current list
+	 */
+	public function getListName() {
+		return $this->listName;
+	}
 
 	public function getLists() {
 		$dirP = opendir('.');
@@ -153,5 +213,16 @@ class Ezmlm {
 	public function getListInfo() {
 		$this->rt("ezmlm-get", $out, $err);
 		echo "Out: $out\nErr: $err";
+	}
+
+	public function addSubscriber($subscriberEmail) {
+		if (! $this->isValidEmail($subscriberEmail)) {
+			throw new Exception("invalid email address [$subscriberEmail]");
+		}
+		$command = "ezmlm-sub";
+		$options = $this->listPath . ' ' . $subscriberEmail;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options);
+		return $ret;
 	}
 }

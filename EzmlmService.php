@@ -494,6 +494,7 @@ class EzmlmService extends BaseService {
 						}
 					}
 				}
+				break;
 			default:
 				$this->usage();
 				return false;
@@ -506,7 +507,19 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function addSubscriber($data) {
-		echo "addSubscriber()";
+		if (empty($data['address'])) {
+			$this->sendError("Missing 'address' in JSON data");
+		}
+		//echo "addSubscriber(" . $data['address'] . ")\n";
+		$ret = $this->lib->addSubscriber($data['address']);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"new_subscriber" => $data['address']
+			));
+		} else {
+			$this->sendError('unknown error in addSubscriber()');
+		}
 	}
 
 	protected function addPoster($data) {
