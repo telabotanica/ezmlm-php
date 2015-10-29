@@ -502,13 +502,29 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function addList($data) {
-
-		echo "addList(): " . $this->listName;
+		if (empty($data['name'])) {
+			$this->sendError("missing 'name' in JSON data");
+		}
+		$options = null;
+		if (!empty($data['options'])) {
+			$options = $data['options'];
+		}
+		echo "addList(" . $data['name'] . ")\n";
+		$ret = $this->lib->addList($data['name'], $options);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $data['name'],
+				"options" => $options,
+				"created" => true
+			));
+		} else {
+			$this->sendError('unknown error in addList()');
+		}
 	}
 
 	protected function addSubscriber($data) {
 		if (empty($data['address'])) {
-			$this->sendError("Missing 'address' in JSON data");
+			$this->sendError("missing 'address' in JSON data");
 		}
 		//echo "addSubscriber(" . $data['address'] . ")\n";
 		$ret = $this->lib->addSubscriber($data['address']);
@@ -541,22 +557,48 @@ class EzmlmService extends BaseService {
 			return false;
 		}
 
-		$firstResource = $this->resources[0];
+		$firstResource = array_shift($this->resources);
 		switch($firstResource) {
 			case "lists":
-				$this->deleteList();
-				break;
-			case "subscribers":
-				$this->deleteSubscriber();
-				break;
-			case "posters":
-				$this->deletePoster();
-				break;
-			case "moderators":
-				$this->deleteModerator();
-				break;
-			case "messages":
-				$this->deleteMessage();
+				// no more resources ?
+				if (count($this->resources) == 0) {
+					$this->usage();
+					return false;
+				} else {
+					// storing list name
+					$this->listName = array_shift($this->resources);
+					// defining list name once for all
+					$this->lib->setListName($this->listName);
+					// no more resources ?
+					if (count($this->resources) == 0) {
+						$this->deleteList();
+					} else {
+						if (count($this->resources) != 2) {
+							$this->usage();
+							return false;
+						} else {
+							$nextResource = array_shift($this->resources);
+							$argument = array_shift($this->resources);
+							switch ($nextResource) {
+								case "subscribers":
+									$this->deleteSubscriber($argument);
+									break;
+								case "posters":
+									$this->deletePoster($argument);
+									break;
+								case "moderators":
+									$this->deleteModerator($argument);
+									break;
+								case "messages":
+									$this->deleteMessage($argument);
+									break;
+								default:
+									$this->usage();
+									return false;
+							}
+						}
+					}
+				}
 				break;
 			default:
 				$this->usage();
@@ -565,11 +607,29 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function deleteList() {
-		echo "deleteList()";
+		//echo "deleteList(" . $this->listName . ")\n";
+		$ret = $this->lib->deleteList();
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"deleted" => true
+			));
+		} else {
+			$this->sendError('unknown error in deleteList()');
+		};
 	}
 
-	protected function deleteSubscriber() {
-		echo "deleteSubscriber()";
+	protected function deleteSubscriber($address) {
+		//echo "deleteSubscriber($address)\n";
+		$ret = $this->lib->deleteSubscriber($address);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"deleted_subscriber" => $address
+			));
+		} else {
+			$this->sendError('unknown error in deleteSubscriber()');
+		};
 	}
 
 	protected function deletePoster() {

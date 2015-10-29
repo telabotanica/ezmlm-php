@@ -154,8 +154,23 @@ class Ezmlm {
 		return $exists;
 	}
 
-	protected function isValidEmail($email) {
-		return filter_var($email, FILTER_VALIDATE_EMAIL);
+	/**
+	 * Throws an exception if $email is not valid, in the
+	 * meaning of PHP's FILTER_VALIDATE_EMAIL
+	 */
+	protected function checkValidEmail($email) {
+		if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			throw new Exception("invalid email address [$email]");
+		}
+	}
+
+	/**
+	 * Throws an exception if $this->listName is not set
+	 */
+	protected function checkValidListName() {
+		if (empty($this->listName)) {
+			throw new Exception("please set a valid list name before");
+		}
 	}
 
 	// ------------------ API METHODS -----------------------------
@@ -215,11 +230,84 @@ class Ezmlm {
 		echo "Out: $out\nErr: $err";
 	}
 
-	public function addSubscriber($subscriberEmail) {
-		if (! $this->isValidEmail($subscriberEmail)) {
-			throw new Exception("invalid email address [$subscriberEmail]");
+	public function addList($name, $options=null) {
+		$this->checkValidDomain();
+		if ($this->listExists($name)) {
+			throw new Exception("list [$name] already exists");
+		} else {
+			$this->setListName($name);
 		}
+		// convert options string (ex: "aBuD") to command switches (ex: "-a -B -u -D")
+		$switches = '';
+		if (!empty($options)) {
+			// ...
+		}
+		$dotQmailFile = $this->domainPath . '/.qmail-' . $this->name;
+		$commandOptions = $switches . ' ' . $this->listPath . ' ' . $dotQmailFile . ' ' . $this->listName . ' ' . $this->domainName;
+		$ret = $this->rt('ezmlm-make', $commandOptions);
+		if ($ret) {
+			$ret = $this->rt('ezmlm-reply-to', $this->domainName . ' ' . $this->listName);
+		}
+		return $ret;
+	}
+
+	/**
+	 * deletes a list : .qmail-[listname]-* files and /[listname] folder
+	 */
+	public function deleteList() {
+		$this->checkValidListName();
+		$dotQmailFilesPrefix = $this->domainPath . '/.qmail-' . $this->listName . '-';
+		// list of .qmail files @WARNING depends on the options set when creating the list
+		$dotQmailFiles = array(
+			"default",
+			"digest-owner",
+			"digest-return-default",
+			"owner",
+			"reject-default",
+			"return-default"
+		);
+
+		$out = array();
+		$ret = 0;
+		// delete list directory
+		if (is_dir($this->listPath)) {
+			$command = 'rm -r ' . $this->listPath;
+			//echo $command . "\n";
+			exec($command, $out, $retcode);
+			$ret += $retcode;
+		} else {
+			throw new Exception("list [" . $this->listName . "] does not exist");
+		}
+		// delete all .qmail files
+		foreach ($dotQmailFiles as $dqmf) {
+			$filePath = $dotQmailFilesPrefix . $dqmf;
+			if (file_exists($filePath)) {
+				$command = 'rm ' . $filePath;
+				//echo $command . "\n";
+				exec($command, $out, $retcode);
+				$ret += $retcode;
+			}
+		}
+
+		// status
+		if ($ret > 0) {
+			throw new Exception("error while deleting list files");
+		}
+		return true;
+	}
+
+	public function addSubscriber($subscriberEmail) {
+		$this->checkValidEmail($subscriberEmail);
 		$command = "ezmlm-sub";
+		$options = $this->listPath . ' ' . $subscriberEmail;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options);
+		return $ret;
+	}
+
+	public function deleteSubscriber($subscriberEmail) {
+		$this->checkValidEmail($subscriberEmail);
+		$command = "ezmlm-unsub";
 		$options = $this->listPath . ' ' . $subscriberEmail;
 		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
