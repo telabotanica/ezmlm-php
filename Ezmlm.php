@@ -169,8 +169,30 @@ class Ezmlm {
 	 */
 	protected function checkValidListName() {
 		if (empty($this->listName)) {
-			throw new Exception("please set a valid list name before");
+			throw new Exception("please set a valid list");
 		}
+		if (!is_dir($this->listPath)) {
+			throw new Exception("list [" . $this->listName . "] does not exist");
+		}
+	}
+
+	/**
+	 * Throws an exception if $this->listName is not set
+	 */
+	protected function checkValidDomain() {
+		if (empty($this->domainName)) {
+			throw new Exception("please set a valid domain");
+		}
+		if (!is_dir($this->domainPath)) {
+			throw new Exception("domain [" . $this->domainName . "] does not exist");
+		}
+	}
+
+	/*
+	 * Returns true if list $name exists in $this->domainPath domain
+	 */
+	protected function listExists($name) {
+		return is_dir($this->domainPath . '/' . $name);
 	}
 
 	// ------------------ API METHODS -----------------------------
