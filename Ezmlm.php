@@ -195,6 +195,48 @@ class Ezmlm {
 		return is_dir($this->domainPath . '/' . $name);
 	}
 
+	/**
+	 * Converts a string of letters (ex: "aBuD") to a command line switches
+	 * string (ex: "-a -B -u -D") @WARNING only supports single letter switches !
+	 */
+	protected function getSwitches($options) {
+		$switches = '';
+		if (!empty($options)) {
+			$switchesArray = array();
+			$optionsArray = str_split($options);
+			// not twice the same switch
+			$optionsArray = array_unique($optionsArray);
+			foreach ($optionsArray as $opt) {
+				// only letters are allowed
+				if (preg_match('/[a-zA-Z]/', $opt)) {
+					$switchesArray[] = '-' . $opt;
+				}
+			}
+			$switches = implode(' ', $switchesArray);
+		}
+		return $switches;
+	}
+
+	/**
+	 * Sets an option in ezmlm config so that the "Reply-To:" header points
+	 * to the list address and not the sender's
+	 * @TODO find a proper way to know if it worked or not
+	 * © copyleft David Delon 2005 - Tela Botanica / Outils Réseaux
+	 */
+	protected function setReplyToHeader() {
+		$this->checkValidDomain();
+		$this->checkValidListName();
+		// files to be modified
+		$headerRemovePath = $this->listPath . '/headerremove';
+		$headerAddPath = $this->listPath . '/headeradd';
+		// commands
+		$hrCommand = "echo -e 'reply-to' >> " . $headerRemovePath;
+		$haCommand = "echo -e 'Reply-To: <#l#>@<#h#>' >> " . $headerAddPath;
+		//echo $haCommand; exit;
+		exec($hrCommand);
+		exec($haCommand);
+	}
+
 	// ------------------ API METHODS -----------------------------
 
 	/**
@@ -260,15 +302,13 @@ class Ezmlm {
 			$this->setListName($name);
 		}
 		// convert options string (ex: "aBuD") to command switches (ex: "-a -B -u -D")
-		$switches = '';
-		if (!empty($options)) {
-			// ...
-		}
-		$dotQmailFile = $this->domainPath . '/.qmail-' . $this->name;
+		$switches = $this->getSwitches($options);
+		$dotQmailFile = $this->domainPath . '/.qmail-' . $this->listName;
 		$commandOptions = $switches . ' ' . $this->listPath . ' ' . $dotQmailFile . ' ' . $this->listName . ' ' . $this->domainName;
+		//echo "CO: $commandOptions\n";
 		$ret = $this->rt('ezmlm-make', $commandOptions);
 		if ($ret) {
-			$ret = $this->rt('ezmlm-reply-to', $this->domainName . ' ' . $this->listName);
+			$this->setReplyToHeader();
 		}
 		return $ret;
 	}
@@ -278,15 +318,17 @@ class Ezmlm {
 	 */
 	public function deleteList() {
 		$this->checkValidListName();
-		$dotQmailFilesPrefix = $this->domainPath . '/.qmail-' . $this->listName . '-';
+		$dotQmailFilesPrefix = $this->domainPath . '/.qmail-' . $this->listName;
 		// list of .qmail files @WARNING depends on the options set when creating the list
 		$dotQmailFiles = array(
-			"default",
-			"digest-owner",
-			"digest-return-default",
-			"owner",
-			"reject-default",
-			"return-default"
+			"", // list main file
+			"-accept-default",
+			"-default",
+			"-digest-owner",
+			"-digest-return-default",
+			"-owner",
+			"-reject-default",
+			"-return-default"
 		);
 
 		$out = array();
@@ -303,9 +345,10 @@ class Ezmlm {
 		// delete all .qmail files
 		foreach ($dotQmailFiles as $dqmf) {
 			$filePath = $dotQmailFilesPrefix . $dqmf;
-			if (file_exists($filePath)) {
+			//echo "Testing [$filePath]:\n";
+			if (file_exists($filePath) || is_link($filePath)) { // .qmail files are usually links, file_exists() returns false
 				$command = 'rm ' . $filePath;
-				//echo $command . "\n";
+				//echo "command: " . $command . "\n";
 				exec($command, $out, $retcode);
 				$ret += $retcode;
 			}

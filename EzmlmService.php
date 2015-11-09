@@ -509,7 +509,7 @@ class EzmlmService extends BaseService {
 		if (!empty($data['options'])) {
 			$options = $data['options'];
 		}
-		echo "addList(" . $data['name'] . ")\n";
+		//echo "addList(" . $data['name'] . ")\n";
 		$ret = $this->lib->addList($data['name'], $options);
 		if ($ret === true) {
 			$this->sendJson(array(
