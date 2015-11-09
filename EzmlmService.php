@@ -168,22 +168,37 @@ class EzmlmService extends BaseService {
 	protected function getSubscribers() {
 		// "count" switch ?
 		$count = ($this->getParam('count') !== null);
-		echo "getSubscribers(); count : "; var_dump($count);
-		$this->lib->getSubscribers($count);
+		//echo "getSubscribers(); count : "; var_dump($count);
+		$res = $this->lib->getSubscribers($count);
+		if ($count) {
+			$this->sendJson(count($res)); // bare number
+		} else {
+			$this->sendMultipleResults($res);
+		}
 	}
 
 	protected function getPosters() {
 		// "count" switch ?
 		$count = ($this->getParam('count') !== null);
-		echo "getPosters(); count : "; var_dump($count);
-		$this->lib->getPosters($count);
+		//echo "getPosters(); count : "; var_dump($count);
+		$res = $this->lib->getPosters($count);
+		if ($count) {
+			$this->sendJson(count($res)); // bare number
+		} else {
+			$this->sendMultipleResults($res);
+		}
 	}
 
 	protected function getModerators() {
 		// "count" switch ?
 		$count = ($this->getParam('count') !== null);
-		echo "getModerators(); count : "; var_dump($count);
-		$this->lib->getModerators($count);
+		//echo "getModerators(); count : "; var_dump($count);
+		$res = $this->lib->getModerators($count);
+		if ($count) {
+			$this->sendJson(count($res)); // bare number
+		} else {
+			$this->sendMultipleResults($res);
+		}
 	}
 
 	/**
@@ -374,11 +389,6 @@ class EzmlmService extends BaseService {
 	}
 
 	/**
-	 * GET http://tb.org/cumulus.php/search/foo,bar
-	 * Recherche floue parmi les noms et les mots-clefs
-	 * 
-	 * GET http://tb.org/cumulus.php/search?keywords=foo,bar&user=jean-bernard@tela-botanica.org&date=...
-	 * Recherche avancée
 	 */
 	protected function search() {
 		// mode pour les requêtes contenant une ressource (mode simplifié)
@@ -539,11 +549,35 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function addPoster($data) {
-		echo "addPoster()";
+		if (empty($data['address'])) {
+			$this->sendError("missing 'address' in JSON data");
+		}
+		//echo "addPoster(" . $data['address'] . ")\n";
+		$ret = $this->lib->addPoster($data['address']);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"new_allowed_poster" => $data['address']
+			));
+		} else {
+			$this->sendError('unknown error in addPoster()');
+		}
 	}
 
 	protected function addModerator($data) {
-		echo "addModerator()";
+		if (empty($data['address'])) {
+			$this->sendError("missing 'address' in JSON data");
+		}
+		//echo "addModerator(" . $data['address'] . ")\n";
+		$ret = $this->lib->addModerator($data['address']);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"new_moderator" => $data['address']
+			));
+		} else {
+			$this->sendError('unknown error in addModerator()');
+		}
 	}
 
 	// list, subscriber, poster, moderator, message
@@ -632,12 +666,30 @@ class EzmlmService extends BaseService {
 		};
 	}
 
-	protected function deletePoster() {
-		echo "deletePoster()";
+	protected function deleteModerator($address) {
+		//echo "deleteModerator($address)\n";
+		$ret = $this->lib->deleteModerator($address);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"deleted_moderator" => $address
+			));
+		} else {
+			$this->sendError('unknown error in deleteModerator()');
+		};
 	}
 
-	protected function deleteModerator() {
-		echo "deleteModerator()";
+	protected function deletePoster($address) {
+		//echo "deletePoster($address)\n";
+		$ret = $this->lib->deletePoster($address);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"deleted_allowed_poster" => $address
+			));
+		} else {
+			$this->sendError('unknown error in deletePoster()');
+		};
 	}
 
 	protected function deleteMessage() {

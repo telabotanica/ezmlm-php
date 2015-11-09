@@ -361,6 +361,39 @@ class Ezmlm {
 		return true;
 	}
 
+	public function getSubscribers() {
+		$this->checkValidListName();
+		$command = "ezmlm-list";
+		$options = $this->listPath;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options, true);
+		// ezmlm returns one result per line
+		$ret = array_filter(explode("\n", $ret));
+		return $ret;
+	}
+
+	public function getModerators() {
+		$this->checkValidListName();
+		$command = "ezmlm-list";
+		$options = $this->listPath . '/mod';
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options, true);
+		// ezmlm returns one result per line
+		$ret = array_filter(explode("\n", $ret));
+		return $ret;
+	}
+
+	public function getPosters() {
+		$this->checkValidListName();
+		$command = "ezmlm-list";
+		$options = $this->listPath . '/allow';
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options, true);
+		// ezmlm returns one result per line
+		$ret = array_filter(explode("\n", $ret));
+		return $ret;
+	}
+
 	public function addSubscriber($subscriberEmail) {
 		$this->checkValidEmail($subscriberEmail);
 		$command = "ezmlm-sub";
@@ -374,6 +407,42 @@ class Ezmlm {
 		$this->checkValidEmail($subscriberEmail);
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . ' ' . $subscriberEmail;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options);
+		return $ret;
+	}
+
+	public function addModerator($moderatorEmail) {
+		$this->checkValidEmail($moderatorEmail);
+		$command = "ezmlm-sub";
+		$options = $this->listPath . '/mod ' . $moderatorEmail;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options);
+		return $ret;
+	}
+
+	public function deleteModerator($moderatorEmail) {
+		$this->checkValidEmail($moderatorEmail);
+		$command = "ezmlm-unsub";
+		$options = $this->listPath . '/mod ' . $moderatorEmail;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options);
+		return $ret;
+	}
+
+	public function addPoster($posterEmail) {
+		$this->checkValidEmail($posterEmail);
+		$command = "ezmlm-sub";
+		$options = $this->listPath . '/allow ' . $posterEmail;
+		//var_dump($command . " " . $options);
+		$ret = $this->rt($command, $options);
+		return $ret;
+	}
+
+	public function deletePoster($posterEmail) {
+		$this->checkValidEmail($posterEmail);
+		$command = "ezmlm-unsub";
+		$options = $this->listPath . '/allow ' . $posterEmail;
 		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
