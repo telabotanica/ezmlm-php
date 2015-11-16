@@ -447,4 +447,11 @@ class Ezmlm {
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
+
+	public function getAllMessages() {
+
+	}
+
+	public function getLastMessages() {
+	}
 }

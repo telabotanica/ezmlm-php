@@ -1,4 +1,7 @@
 {
 	"domain_root" : "http://localhost",
-	"base_uri" : "/ezmlm-php"
+	"base_uri" : "/ezmlm-php",
+	"settings" : {
+		"defaultMessagesLimit" : 10
+	}
 }

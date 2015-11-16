@@ -26,26 +26,33 @@ class EzmlmService extends BaseService {
 	/** current message if any */
 	protected $messageId;
 
+	/** default number of messages returned by "last messages" commands */
+	protected $defaultMessagesLimit;
+
 	public function __construct() {
 		parent::__construct();
 		// Ezmlm lib
 		$this->lib = new Ezmlm();
+
+		// additional settings
+		$this->defaultMessagesLimit = $this->config['settings']['defaultMessagesLimit'];
 	}
 
 	/**
 	 * Sends multiple results in a JSON object
 	 */
-	protected function sendMultipleResults($results, $errorMessage="no results", $errorCode=404) {
-		if ($results == false) {
-			$this->sendError($errorMessage, $errorCode);
-		} else {
+	protected function sendMultipleResults($results/*, $errorMessage="no results", $errorCode=404*/) {
+		//var_dump($results); exit;
+		//if ($results == false) {
+		//	$this->sendError($errorMessage, $errorCode);
+		//} else {
 			$this->sendJson(
 				array(
 					"count" => count($results),
 					"results" => $results
 				)
 			);
-		}
+		//}
 	}
 
 	/**
@@ -305,7 +312,12 @@ class EzmlmService extends BaseService {
 			$nextResource = array_shift($this->resources);
 			switch ($nextResource) {
 				case "last":
-					$this->getLastMessages();
+					// more resources ?
+					$limit = false;
+					if (count($this->resources) > 0) {
+						$limit = array_shift($this->resources);
+					}
+					$this->getLastMessages($limit);
 					break;
 				case "search":
 					$this->searchMessages();
@@ -340,12 +352,27 @@ class EzmlmService extends BaseService {
 		}
 	}
 
-	protected function getAllMessages() {
-		echo "getAllMessages()";
+	protected function getAllMessages($count) {
+		echo "getAllMessages(" . ($count ? "true" : "false") . ")";
+		$res = $this->lib->getAllMessages($count);
+		if ($count) {
+			$this->sendJson(count($res)); // bare number
+		} else {
+			$this->sendMultipleResults($res);
+		}
 	}
 
-	protected function getLastMessages() {
-		echo "getLastMessages()";
+	protected function getLastMessages($limit=false) {
+		if ($limit === false) {
+			$limit = $this->defaultMessagesLimit;
+		}
+		echo "getLastMessages($limit)";
+		$res = $this->lib->getLastMessages($count);
+		if ($count) {
+			$this->sendJson(count($res)); // bare number
+		} else {
+			$this->sendMultipleResults($res);
+		}
 	}
 
 	protected function searchMessages() {
@@ -362,30 +389,6 @@ class EzmlmService extends BaseService {
 
 	protected function getPreviousMessage() {
 		echo "getPreviousMessage()";
-	}
-
-	/**
-	 * GET http://tb.org/cumulus.php/by-name/compte rendu
-	 * GET http://tb.org/cumulus.php/by-name/compte rendu?LIKE (par défaut)
-	 * GET http://tb.org/cumulus.php/by-name/compte rendu?STRICT
-	 * 
-	 * Renvoie une liste de fichiers (les clefs et les attributs) correspondant
-	 * au nom ou à la / aux portion(s) de nom fournie(s), quels que soient leurs
-	 * emplacements
-	 * @TODO paginate, sort and limit
-	 */
-	protected function getByName() {
-		$name = isset($this->resources[1]) ? $this->resources[1] : null;
-		$strict = false;
-		if ($this->getParam('STRICT') !== null) {
-			$strict = true;
-		}
-
-		//echo "getByName : [$name]\n";
-		//var_dump($strict);
-		$files = $this->lib->getByName($name, $strict);
-
-		$this->sendMultipleResults($files);
 	}
 
 	/**
