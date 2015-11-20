@@ -30,6 +30,9 @@ class Ezmlm {
 	/** absolute path of current mailing list */
 	protected $listPath;
 
+	/** various settings read from config */
+	protected $settings;
+
 	public function __construct() {
 		// config
 		if (file_exists(self::$CONFIG_PATH)) {
@@ -60,6 +63,8 @@ class Ezmlm {
 		$this->domainsPath = $this->config['ezmlm']['domainsPath'];
 		// default domain
 		$this->setDomain($this->config['ezmlm']['domain']);
+		// various settings
+		$this->settings = $this->config['settings'];
 	}
 
 	/**
@@ -144,6 +149,7 @@ class Ezmlm {
 
 	/**
 	 * Returns true if $fileName exists in directory $dir, false otherwise
+	 * @TODO replace by a simple file_exists() provided by PHP ?!
 	 */
 	protected function fileExistsInDir($fileName, $dir) {
 		$dirP = opendir($dir);
@@ -167,7 +173,7 @@ class Ezmlm {
 	/**
 	 * Throws an exception if $this->listName is not set
 	 */
-	protected function checkValidListName() {
+	protected function checkValidList() {
 		if (empty($this->listName)) {
 			throw new Exception("please set a valid list");
 		}
@@ -225,7 +231,7 @@ class Ezmlm {
 	 */
 	protected function setReplyToHeader() {
 		$this->checkValidDomain();
-		$this->checkValidListName();
+		$this->checkValidList();
 		// files to be modified
 		$headerRemovePath = $this->listPath . '/headerremove';
 		$headerAddPath = $this->listPath . '/headeradd';
@@ -235,6 +241,133 @@ class Ezmlm {
 		//echo $haCommand; exit;
 		exec($hrCommand);
 		exec($haCommand);
+	}
+
+	/**
+	 * Generates an author's hash using the included makehash program
+	 * (i) copied from original lib
+	 */
+	protected function makehash($str) {
+		$str = preg_replace ('/>/', '', $str); // wtf ?
+		$hash = $this->rt("makehash", $str, true);
+		return $hash;
+	}
+
+	// ------------------ PARSING METHODS -------------------------
+
+	protected function readMessagesFromArchive($includeMessages=false, $limit=false) {
+		// check valid limit
+		if (! is_numeric($limit) || $limit <= 0) {
+			$limit = false;
+		}
+		// idiot-proof attempt
+		if ($includeMessages) {
+			if (! empty($this->settings['maxMessagesWithContentsReadableAtOnce']) && ($this->settings['maxMessagesWithContentsReadableAtOnce']) < $limit) {
+				throw new Exception("cannot read more than " . $this->settings['maxMessagesWithContentsReadableAtOnce'] . " messages at once, if messages contents are included");
+			}
+		}
+
+		$archiveDir = $this->listPath . '/archive';
+		if (! is_dir($archiveDir)) {
+			throw new Exception('list is not archived'); // @TODO check if archive folder exists in case a list is archived but empty
+		}
+		$archiveD = opendir($archiveDir);
+		//echo "Reading $archiveDir \n";
+		// get all subfolders
+		$subfolders = array();
+		while (($d = readdir($archiveD)) !== false) {
+			if (preg_match('/[0-9]+/', $d)) {
+				$subfolders[] = $d;
+			}
+		}
+		// sort and reverse order (last messages first)
+		sort($subfolders, SORT_NUMERIC);
+		$subfolders = array_reverse($subfolders);
+		//var_dump($subfolders);
+
+		$messages = array();
+		// read index files for each folder
+		foreach ($subfolders as $sf) {
+			$subMessages = $this->readMessagesFromArchiveSubfolder($sf, $includeMessages, $limit);
+			$messages = array_merge($messages, $subMessages);
+		}
+
+		// bye
+		closedir($archiveD);
+
+		var_dump($messages);
+	}
+
+	/**
+	 * Reads all messages from an archive subfolder (ex: archive/0, archive/1) - this represents maximum
+	 * 100 messages - then returns all metadata for each message, along with the messages contents if
+	 * $includeMessages is true; limits the output to $limit messages, if $limit is a valid number
+	 */
+	protected function readMessagesFromArchiveSubfolder($subfolder, $includeMessages=false, $limit=false) {
+		// check valid limit
+		if (! is_numeric($limit) || $limit <= 0) {
+			$limit = false;
+		}
+
+		$indexF = fopen($this->listPath . '/archive/' . $subfolder . '/index', 'r');
+		var_dump($indexF);
+		// read index file 
+		$messages = array();
+		while (! feof($indexF)) {
+			// Line 1 : get message number, subject hash and subject
+			$temp = fgets($indexF, 4096);
+			preg_match('/([0-9]+): ([a-z]+) (.*)/', $temp, $match1);
+			// Line 2 : get date, author hash and hash
+			$temp = fgets($indexF, 4096);
+			preg_match('/\t([0-9]+) ([a-zA-Z][a-zA-Z][a-zA-Z]) ([0-9][0-9][0-9][0-9]) ([^;]+);([^ ]*) (.*)/', $temp, $match2) ;
+
+			if ($match1[1] != '') {
+				$messageId = $match1[1];
+				// formatted return
+				$messages[$messageId] = array(
+					"message_id" => $messageId, // comfort redundancy
+					"subject_hash" => $match1[2],
+					"subject" => $match1[3],
+					"message_date" => $match2[1] . ' ' . $match2[2] . ' ' . $match2[3],
+					"author_hash" => $match2[5],
+					"author_name" => $match2[6]
+				);
+				// read message contents on the fly
+				if ($includeMessages) {
+					$messageContents = $this->readMessage($messageId);
+					$messages[$messageId]["message_contents"] = $messageContents;
+				}
+			}
+		}
+		fclose($indexF);
+
+		// reverse messages order (last ones first)
+		$messages = array_reverse($messages);
+
+		return $messages;
+	}
+
+	/**
+	 * Reads and returns the contents of the $id-th message in the current list's archive
+	 */
+	protected function readMessage($id) {
+		// check valid id
+		if (! is_numeric($id) || $id <=0) {
+			throw new Exception("invalid message id [$id]");
+		}
+		// ezmlm archive format : http://www.mathematik.uni-ulm.de/help/qmail/ezmlm.5.html
+		$subfolder = intval($id / 100);
+		$messageId = $id - (100 * $subfolder);
+		if ($messageId < 10) {
+			$messageId = '0' . $messageId;
+		}
+		//echo "ID: $id, SF: $subfolder, MSG: $messageId\n";
+		$messageFile = $this->listPath . '/archive/' . $subfolder . '/' . $messageId;
+		if (! file_exists($messageFile)) {
+			throw new Exception("message of id [$id] does not exist");
+		}
+		$message = file_get_contents($messageFile);
+		return $message;
 	}
 
 	// ------------------ API METHODS -----------------------------
@@ -317,7 +450,7 @@ class Ezmlm {
 	 * deletes a list : .qmail-[listname]-* files and /[listname] folder
 	 */
 	public function deleteList() {
-		$this->checkValidListName();
+		$this->checkValidList();
 		$dotQmailFilesPrefix = $this->domainPath . '/.qmail-' . $this->listName;
 		// list of .qmail files @WARNING depends on the options set when creating the list
 		$dotQmailFiles = array(
@@ -362,7 +495,7 @@ class Ezmlm {
 	}
 
 	public function getSubscribers() {
-		$this->checkValidListName();
+		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath;
 		//var_dump($command . " " . $options);
@@ -373,7 +506,7 @@ class Ezmlm {
 	}
 
 	public function getModerators() {
-		$this->checkValidListName();
+		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath . '/mod';
 		//var_dump($command . " " . $options);
@@ -384,7 +517,7 @@ class Ezmlm {
 	}
 
 	public function getPosters() {
-		$this->checkValidListName();
+		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath . '/allow';
 		//var_dump($command . " " . $options);
@@ -448,10 +581,19 @@ class Ezmlm {
 		return $ret;
 	}
 
-	public function getAllMessages() {
-
+	public function countAllMessages() {
+		return 42;
 	}
 
-	public function getLastMessages() {
+	public function getAllMessages() {
+		$this->checkValidList();
+		$msgs = $this->readMessagesFromArchive(true, 100);
+		return $msgs;
+	}
+
+	public function getLatestMessages($limit=false) {
+		$this->checkValidList();
+		$msgs = $this->readMessagesFromArchive($limit);
+		return $msgs;
 	}
 }

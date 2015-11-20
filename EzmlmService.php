@@ -26,7 +26,7 @@ class EzmlmService extends BaseService {
 	/** current message if any */
 	protected $messageId;
 
-	/** default number of messages returned by "last messages" commands */
+	/** default number of messages returned by "latest messages" commands */
 	protected $defaultMessagesLimit;
 
 	public function __construct() {
@@ -246,7 +246,7 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function getMessagesByTopic() {
-		// @TODO detect /last, /search, /id/(next|previous) et ?count
+		// @TODO detect /latest, /search, /id/(next|previous) et ?count
 		echo "getMessagesByTopic()";
 	}
 
@@ -292,11 +292,11 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function getTopicsByAuthor() {
-		// @TODO detect /last et ?count
+		// @TODO detect /latest et ?count
 	}
 
 	protected function getMessagesByAuthor() {
-		// @TODO detect /last, /search, /id/(next|previous) et ?count
+		// @TODO detect /latest, /search, /id/(next|previous) et ?count
 	}
 
 	/**
@@ -311,13 +311,13 @@ class EzmlmService extends BaseService {
 		} else {
 			$nextResource = array_shift($this->resources);
 			switch ($nextResource) {
-				case "last":
+				case "latest":
 					// more resources ?
 					$limit = false;
 					if (count($this->resources) > 0) {
 						$limit = array_shift($this->resources);
 					}
-					$this->getLastMessages($limit);
+					$this->getLatestMessages($limit);
 					break;
 				case "search":
 					$this->searchMessages();
@@ -354,25 +354,22 @@ class EzmlmService extends BaseService {
 
 	protected function getAllMessages($count) {
 		echo "getAllMessages(" . ($count ? "true" : "false") . ")";
-		$res = $this->lib->getAllMessages($count);
 		if ($count) {
-			$this->sendJson(count($res)); // bare number
+			$res = $this->lib->countAllMessages();
+			$this->sendJson($res);
 		} else {
+			$res = $this->lib->getAllMessages();
 			$this->sendMultipleResults($res);
 		}
 	}
 
-	protected function getLastMessages($limit=false) {
+	protected function getLatestMessages($limit=false) {
 		if ($limit === false) {
 			$limit = $this->defaultMessagesLimit;
 		}
-		echo "getLastMessages($limit)";
-		$res = $this->lib->getLastMessages($count);
-		if ($count) {
-			$this->sendJson(count($res)); // bare number
-		} else {
-			$this->sendMultipleResults($res);
-		}
+		echo "getLatestMessages($limit)";
+		$res = $this->lib->getLatestMessages($limit);
+		$this->sendMultipleResults($res);
 	}
 
 	protected function searchMessages() {
