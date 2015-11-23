@@ -68,6 +68,20 @@ class EzmlmService extends BaseService {
 	}*/
 
 	/**
+	 * Returns true if $val is true or "true", false if $val is
+	 * false or "false", $val if $val is any other value
+	 */
+	protected function parseBool($val) {
+		if ($val === true || $val === "true") {
+			return true;
+		}
+		if ($val === false || $val === "false") {
+			return false;
+		}
+		return $val;
+	}
+
+	/**
 	 * Service autodescription
 	 */
 	protected function usage() {
@@ -306,8 +320,7 @@ class EzmlmService extends BaseService {
 		// no more resources ?
 		if (count($this->resources) == 0) {
 			// "count" switch ?
-			$count = ($this->getParam('count') !== null);
-			$this->getAllMessages($count);
+			$this->getAllMessages();
 		} else {
 			$nextResource = array_shift($this->resources);
 			switch ($nextResource) {
@@ -352,13 +365,15 @@ class EzmlmService extends BaseService {
 		}
 	}
 
-	protected function getAllMessages($count) {
-		echo "getAllMessages(" . ($count ? "true" : "false") . ")";
+	protected function getAllMessages() {
+		$count = ($this->getParam('count') !== null);
+		$contents = $this->parseBool($this->getParam('contents'));
+		//echo "getAllMessages(" . ($count ? "true" : "false") . " / $contents)";
 		if ($count) {
 			$res = $this->lib->countAllMessages();
 			$this->sendJson($res);
 		} else {
-			$res = $this->lib->getAllMessages();
+			$res = $this->lib->getAllMessages($contents);
 			$this->sendMultipleResults($res);
 		}
 	}
@@ -367,8 +382,9 @@ class EzmlmService extends BaseService {
 		if ($limit === false) {
 			$limit = $this->defaultMessagesLimit;
 		}
-		echo "getLatestMessages($limit)";
-		$res = $this->lib->getLatestMessages($limit);
+		$contents = $this->parseBool($this->getParam('contents'));
+		//echo "getLatestMessages($limit / $contents)";
+		$res = $this->lib->getLatestMessages($contents, $limit);
 		$this->sendMultipleResults($res);
 	}
 

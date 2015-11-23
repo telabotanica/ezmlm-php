@@ -16,6 +16,7 @@
 		}
 	},
 	"settings": {
-		"maxMessagesWithContentsReadableAtOnce": 100
+		"maxMessagesWithContentsReadableAtOnce": 100,
+		"messageAbstractSize": 64
 	}
 }

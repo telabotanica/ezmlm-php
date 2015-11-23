@@ -255,13 +255,32 @@ class Ezmlm {
 
 	// ------------------ PARSING METHODS -------------------------
 
+	/**
+	 * Reads "num" file in list dir to get total messages count
+	 */
+	protected function countMessagesFromArchive() {
+		$numFile = $this->listPath . '/num';
+		if (! file_exists($numFile)) {
+			throw new Exception('list has no num file');
+		}
+		$num = file_get_contents($numFile);
+		$num = explode(':', $num);
+
+		return intval($num[0]);
+	}
+
+	/**
+	 * Reads $limit messages from the list archive. Beware: setting $limit to 0 means no limit.
+	 * If $includeMessages is true, returns the parsed message contents along with the metadata;
+	 * if $includeMessages is "abstract", returns only the first characters of the message.
+	 */
 	protected function readMessagesFromArchive($includeMessages=false, $limit=false) {
 		// check valid limit
 		if (! is_numeric($limit) || $limit <= 0) {
 			$limit = false;
 		}
 		// idiot-proof attempt
-		if ($includeMessages) {
+		if ($includeMessages === true) { // unlimited abstracts are allowed
 			if (! empty($this->settings['maxMessagesWithContentsReadableAtOnce']) && ($this->settings['maxMessagesWithContentsReadableAtOnce']) < $limit) {
 				throw new Exception("cannot read more than " . $this->settings['maxMessagesWithContentsReadableAtOnce'] . " messages at once, if messages contents are included");
 			}
@@ -287,21 +306,28 @@ class Ezmlm {
 
 		$messages = array();
 		// read index files for each folder
-		foreach ($subfolders as $sf) {
-			$subMessages = $this->readMessagesFromArchiveSubfolder($sf, $includeMessages, $limit);
+		$idx = 0;
+		$read = 0;
+		$length = count($subfolders);
+		while (($idx < $length) && ($limit == false || $limit > $read)) { // stop if enough messages are read
+			$sf = $subfolders[$idx];
+			$subMessages = $this->readMessagesFromArchiveSubfolder($sf, $includeMessages, ($limit - $read)); // @WARNING setting limit to 0 means unlimited
 			$messages = array_merge($messages, $subMessages);
+			$read += count($subMessages);
+			$idx++;
 		}
 
 		// bye
 		closedir($archiveD);
 
-		var_dump($messages);
+		return $messages;
 	}
 
 	/**
-	 * Reads all messages from an archive subfolder (ex: archive/0, archive/1) - this represents maximum
+	 * Reads $limit messages from an archive subfolder (ex: archive/0, archive/1) - this represents maximum
 	 * 100 messages - then returns all metadata for each message, along with the messages contents if
-	 * $includeMessages is true; limits the output to $limit messages, if $limit is a valid number
+	 * $includeMessages is true; limits the output to $limit messages, if $limit is a valid number > 0;
+	 * beware: setting $limit to 0 means no limit !
 	 */
 	protected function readMessagesFromArchiveSubfolder($subfolder, $includeMessages=false, $limit=false) {
 		// check valid limit
@@ -309,17 +335,23 @@ class Ezmlm {
 			$limit = false;
 		}
 
-		$indexF = fopen($this->listPath . '/archive/' . $subfolder . '/index', 'r');
-		var_dump($indexF);
-		// read index file 
+		//$indexF = fopen($this->listPath . '/archive/' . $subfolder . '/index', 'r');
+		// read file backwards
+		$index = file($this->listPath . '/archive/' . $subfolder . '/index');
+		$index = array_reverse($index);
+		// var_dump($index); exit;
+		// read 2 lines at once - @WARNING considers file contents is always even !
+		$length = count($index);
+		$idx = 0;
+		$read = 0;
 		$messages = array();
-		while (! feof($indexF)) {
-			// Line 1 : get message number, subject hash and subject
-			$temp = fgets($indexF, 4096);
+		while ($idx < $length && ($limit == false || $limit > $read)) {
+			// Line 1 : get date, author hash and hash
+			$temp = $index[$idx];
+			preg_match('/\t([0-9]+) ([a-zA-Z][a-zA-Z][a-zA-Z]) ([0-9][0-9][0-9][0-9]) ([^;]+);([^ ]*) (.*)/', $temp, $match2);
+			// Line 2 : get message number, subject hash and subject
+			$temp = $index[$idx+1];
 			preg_match('/([0-9]+): ([a-z]+) (.*)/', $temp, $match1);
-			// Line 2 : get date, author hash and hash
-			$temp = fgets($indexF, 4096);
-			preg_match('/\t([0-9]+) ([a-zA-Z][a-zA-Z][a-zA-Z]) ([0-9][0-9][0-9][0-9]) ([^;]+);([^ ]*) (.*)/', $temp, $match2) ;
 
 			if ($match1[1] != '') {
 				$messageId = $match1[1];
@@ -333,24 +365,32 @@ class Ezmlm {
 					"author_name" => $match2[6]
 				);
 				// read message contents on the fly
-				if ($includeMessages) {
+				// @TODO use message parser !!
+				if ($includeMessages === true) {
 					$messageContents = $this->readMessage($messageId);
 					$messages[$messageId]["message_contents"] = $messageContents;
+				} elseif ($includeMessages === "abstract") {
+					$messageAbstract = $this->readMessageAbstract($messageId);
+					$messages[$messageId]["message_contents"] = $messageAbstract;
 				}
 			}
+			$idx += 2;
+			$read++;
 		}
-		fclose($indexF);
-
-		// reverse messages order (last ones first)
-		$messages = array_reverse($messages);
 
 		return $messages;
 	}
 
+	protected function readMessageAbstract($id) {
+		return $this->readMessage($id, true);
+	}
+
 	/**
 	 * Reads and returns the contents of the $id-th message in the current list's archive
+	 * If $abstract is true, reads only the first $this-->settings['messageAbstractSize'] chars
+	 * of the message (default 128)
 	 */
-	protected function readMessage($id) {
+	protected function readMessage($id, $abstract=false) {
 		// check valid id
 		if (! is_numeric($id) || $id <=0) {
 			throw new Exception("invalid message id [$id]");
@@ -366,7 +406,18 @@ class Ezmlm {
 		if (! file_exists($messageFile)) {
 			throw new Exception("message of id [$id] does not exist");
 		}
-		$message = file_get_contents($messageFile);
+		// read message
+		if ($abstract) {
+			$abstractSize = 128;
+			if (! empty($this->settings['messageAbstractSize']) && is_numeric($this->settings['messageAbstractSize']) && $this->settings['messageAbstractSize'] > 0) {
+				$abstractSize = $this->settings['messageAbstractSize'];
+			}
+			$msgF = fopen($messageFile, 'r');
+			$message = fread($msgF, $abstractSize);
+			fclose($msgF);
+		} else {
+			$message = file_get_contents($messageFile);
+		}
 		return $message;
 	}
 
@@ -582,18 +633,20 @@ class Ezmlm {
 	}
 
 	public function countAllMessages() {
-		return 42;
+		$this->checkValidList();
+		$nb = $this->countMessagesFromArchive();
+		return $nb;
 	}
 
-	public function getAllMessages() {
+	public function getAllMessages($contents=false) {
 		$this->checkValidList();
-		$msgs = $this->readMessagesFromArchive(true, 100);
+		$msgs = $this->readMessagesFromArchive($contents);
 		return $msgs;
 	}
 
-	public function getLatestMessages($limit=false) {
+	public function getLatestMessages($contents=false, $limit=10) {
 		$this->checkValidList();
-		$msgs = $this->readMessagesFromArchive($limit);
+		$msgs = $this->readMessagesFromArchive($contents, $limit);
 		return $msgs;
 	}
 }
