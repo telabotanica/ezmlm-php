@@ -255,6 +255,37 @@ class Ezmlm {
 
 	// ------------------ PARSING METHODS -------------------------
 
+	protected function computeSubfolderAndId($id) {
+		// ezmlm archive format : http://www.mathematik.uni-ulm.de/help/qmail/ezmlm.5.html
+		$subfolder = intval($id / 100);
+		$messageId = $id - (100 * $subfolder);
+		if ($messageId < 10) {
+			$messageId = '0' . $messageId;
+		}
+		return array($subfolder, $messageId);
+	}
+
+	protected function extractMessageMetadata($line1, $line2) {
+		// Line 1 : get message number, subject hash and subject
+		preg_match('/([0-9]+): ([a-z]+) (.*)/', $line1, $match1);
+		// Line 2 : get date, author hash and hash
+		preg_match('/\t([0-9]+) ([a-zA-Z][a-zA-Z][a-zA-Z]) ([0-9][0-9][0-9][0-9]) ([^;]+);([^ ]*) (.*)/', $line2, $match2);
+
+		$message = null;
+		if ($match1[1] != '') {
+			// formatted return
+			$message = array(
+				"message_id" => $match1[1],
+				"subject_hash" => $match1[2],
+				"subject" => $match1[3],
+				"message_date" => $match2[1] . ' ' . $match2[2] . ' ' . $match2[3] . ' ' . $match2[4],
+				"author_hash" => $match2[5],
+				"author_name" => $match2[6]
+			);
+		}
+		return $message;
+	}
+
 	/**
 	 * Reads "num" file in list dir to get total messages count
 	 */
@@ -346,33 +377,17 @@ class Ezmlm {
 		$read = 0;
 		$messages = array();
 		while ($idx < $length && ($limit == false || $limit > $read)) {
-			// Line 1 : get date, author hash and hash
-			$temp = $index[$idx];
-			preg_match('/\t([0-9]+) ([a-zA-Z][a-zA-Z][a-zA-Z]) ([0-9][0-9][0-9][0-9]) ([^;]+);([^ ]*) (.*)/', $temp, $match2);
-			// Line 2 : get message number, subject hash and subject
-			$temp = $index[$idx+1];
-			preg_match('/([0-9]+): ([a-z]+) (.*)/', $temp, $match1);
-
-			if ($match1[1] != '') {
-				$messageId = $match1[1];
-				// formatted return
-				$messages[$messageId] = array(
-					"message_id" => $messageId, // comfort redundancy
-					"subject_hash" => $match1[2],
-					"subject" => $match1[3],
-					"message_date" => $match2[1] . ' ' . $match2[2] . ' ' . $match2[3],
-					"author_hash" => $match2[5],
-					"author_name" => $match2[6]
-				);
-				// read message contents on the fly
-				// @TODO use message parser !!
-				if ($includeMessages === true) {
-					$messageContents = $this->readMessage($messageId);
-					$messages[$messageId]["message_contents"] = $messageContents;
-				} elseif ($includeMessages === "abstract") {
-					$messageAbstract = $this->readMessageAbstract($messageId);
-					$messages[$messageId]["message_contents"] = $messageAbstract;
-				}
+			$message = $this->extractMessageMetadata($index[$idx+1], $index[$idx]);
+			$messageId = $message['message_id'];
+			$messages[$messageId] = $message;
+			// read message contents on the fly
+			// @TODO use message parser !!
+			if ($includeMessages === true) {
+				$messageContents = $this->readMessageContents($messageId);
+				$messages[$messageId]["message_contents"] = $messageContents;
+			} elseif ($includeMessages === "abstract") {
+				$messageAbstract = $this->readMessageAbstract($messageId);
+				$messages[$messageId]["message_contents"] = $messageAbstract;
 			}
 			$idx += 2;
 			$read++;
@@ -381,8 +396,32 @@ class Ezmlm {
 		return $messages;
 	}
 
+	/**
+	 * Reads and returns metadata for the $id-th message in the current list's archive.
+	 * If $contents is true, includes the message contents; if $contents is "abstract",
+	 * includes only the first characters of the message
+	 */
+	protected function readMessage($id, $contents=true) {
+		list($subfolder, $messageid) = $this->computeSubfolderAndId($id);
+		$indexPath = $this->listPath . '/archive/' . $subfolder . '/index';
+		// sioux trick to get the 2 lines concerning the message
+		$grep = 'grep "' . $id . ': " "' . $indexPath . '" -A 1';
+		exec($grep, $lines);
+		//var_dump($lines); exit;
+
+		$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
+		if ($contents === true) {
+			$messageContents = $this->readMessageContents($id);
+			$ret["message_contents"] = $messageContents;
+		} elseif ($contents === "abstract") {
+			$messageAbstract = $this->readMessageAbstract($id);
+			$ret["message_contents"] = $messageAbstract;
+		}
+		return $ret;
+	}
+
 	protected function readMessageAbstract($id) {
-		return $this->readMessage($id, true);
+		return $this->readMessageContents($id, true);
 	}
 
 	/**
@@ -390,17 +429,12 @@ class Ezmlm {
 	 * If $abstract is true, reads only the first $this-->settings['messageAbstractSize'] chars
 	 * of the message (default 128)
 	 */
-	protected function readMessage($id, $abstract=false) {
+	protected function readMessageContents($id, $abstract=false) {
 		// check valid id
 		if (! is_numeric($id) || $id <=0) {
 			throw new Exception("invalid message id [$id]");
 		}
-		// ezmlm archive format : http://www.mathematik.uni-ulm.de/help/qmail/ezmlm.5.html
-		$subfolder = intval($id / 100);
-		$messageId = $id - (100 * $subfolder);
-		if ($messageId < 10) {
-			$messageId = '0' . $messageId;
-		}
+		list($subfolder, $messageId) = $this->computeSubfolderAndId($id);
 		//echo "ID: $id, SF: $subfolder, MSG: $messageId\n";
 		$messageFile = $this->listPath . '/archive/' . $subfolder . '/' . $messageId;
 		if (! file_exists($messageFile)) {
@@ -648,5 +682,11 @@ class Ezmlm {
 		$this->checkValidList();
 		$msgs = $this->readMessagesFromArchive($contents, $limit);
 		return $msgs;
+	}
+
+	public function getMessage($id, $contents=true) {
+		$this->checkValidList();
+		$msg = $this->readMessage($id, $contents);
+		return $msg;
 	}
 }

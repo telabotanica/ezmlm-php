@@ -338,19 +338,18 @@ class EzmlmService extends BaseService {
 				default:
 					// this should be a message id
 					if (is_numeric($nextResource)) {
-						// storing message id
-						$this->messageId = $nextResource;
+						$messageId = $nextResource;
 						// no more resoures ?
 						if (count($this->resources) == 0) {
-							$this->getMessage();
+							$this->getMessage($messageId);
 						} else {
 							$nextResource = array_shift($this->resources);
 							switch ($nextResource) {
 								case "next":
-									$this->getNextMessage();
+									$this->getNextMessage($messageId);
 									break;
 								case "previous":
-									$this->getPreviousMessage();
+									$this->getPreviousMessage($messageId);
 									break;
 								default:
 									$this->usage();
@@ -392,16 +391,22 @@ class EzmlmService extends BaseService {
 		echo "searchMessages()";
 	}
 
-	protected function getMessage() {
-		echo "getMessage()";
+	protected function getMessage($id) {
+		$contents = $this->parseBool($this->getParam('contents', true));
+		//echo "getMessage() : " . $id;
+		$res = $this->lib->getMessage($id, $contents);
+		$this->sendJson(array(
+			"id" => $id,
+			"message" => $res
+		));
 	}
 
-	protected function getNextMessage() {
-		echo "getNextMessage()";
+	protected function getNextMessage($id) {
+		return $this->getMessage($id+1);
 	}
 
-	protected function getPreviousMessage() {
-		echo "getPreviousMessage()";
+	protected function getPreviousMessage($id) {
+		return $this->getMessage($id-1);
 	}
 
 	/**
