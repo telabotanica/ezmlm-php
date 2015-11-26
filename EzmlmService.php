@@ -119,40 +119,50 @@ class EzmlmService extends BaseService {
 				if (count($this->resources) == 0) {
 					$this->getLists();
 				} else {
-					// storing list name
-					$this->listName = array_shift($this->resources);
-					// defining list name once for all
-					$this->lib->setListName($this->listName);
-					// no more resources ?
-					if (count($this->resources) == 0) {
-						$this->getListInfo();
-					} else { // moar !!
-						$nextResource = array_shift($this->resources);
-						switch ($nextResource) {
-							case 'options':
-								$this->getListOptions();
-								break;
-							case 'subscribers':
-								$this->getSubscribers();
-								break;
-							case 'posters':
-								$this->getPosters();
-								break;
-							case 'moderators':
-								$this->getModerators();
-								break;
-							case 'topics':
-								$this->getByTopics();
-								break;
-							case 'authors':
-								$this->getByAuthors();
-								break;
-							case 'messages':
-								$this->getByMessages();
-								break;
-							default:
-								$this->usage();
-								return false;
+					$nextResource = array_shift($this->resources);
+					if ($nextResource == "search") {
+						// no more resources ?
+						if (count($this->resources) == 0) {
+							$this->usage();
+						} else {
+							$this->searchLists($this->resources[0]);
+						}
+					} else {
+						// storing list name
+						$this->listName = $nextResource;
+						// defining list name once for all
+						$this->lib->setListName($this->listName);
+						// no more resources ?
+						if (count($this->resources) == 0) {
+							$this->getListInfo();
+						} else { // moar !!
+							$nextResource = array_shift($this->resources);
+							switch ($nextResource) {
+								case 'options':
+									$this->getListOptions();
+									break;
+								case 'subscribers':
+									$this->getSubscribers();
+									break;
+								case 'posters':
+									$this->getPosters();
+									break;
+								case 'moderators':
+									$this->getModerators();
+									break;
+								case 'topics':
+									$this->getByTopics();
+									break;
+								case 'authors':
+									$this->getByAuthors();
+									break;
+								case 'messages':
+									$this->getByMessages();
+									break;
+								default:
+									$this->usage();
+									return false;
+							}
 						}
 					}
 					break;
@@ -170,6 +180,15 @@ class EzmlmService extends BaseService {
 		//echo "list of lists !";
 
 		$lists = $this->lib->getLists();
+		$this->sendMultipleResults($lists);
+	}
+
+	/**
+	 * Searches among available lists
+	 */
+	protected function searchLists($pattern) {
+		//echo "Search lists: $pattern\n";
+		$lists = $this->lib->getLists($pattern);
 		$this->sendMultipleResults($lists);
 	}
 
@@ -407,34 +426,6 @@ class EzmlmService extends BaseService {
 
 	protected function getPreviousMessage($id) {
 		return $this->getMessage($id-1);
-	}
-
-	/**
-	 */
-	protected function search() {
-		// mode pour les requêtes contenant une ressource (mode simplifié)
-		$mode = "AND";
-		if ($this->getParam('OR') !== null) {
-			$mode = "OR";
-		}
-		// paramètres de recherche
-		$searchParams = array(
-			"mode" => $mode
-		);
-		// URL simplifiée ou non
-		if (! empty($this->resources[1])) {
-			$searchParams['keywords'] = $this->resources[1];
-			$searchParams['name'] = $this->resources[1];
-			$searchParams['mode'] = "OR";
-		} else {
-			$searchParams = $this->params;
-		}
-
-		//echo "search :\n";
-		//var_dump($searchParams);
-		$files = $this->lib->search($searchParams);
-
-		$this->sendMultipleResults($files);
 	}
 
 	/**

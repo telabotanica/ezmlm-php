@@ -491,13 +491,26 @@ class Ezmlm {
 		return $this->listName;
 	}
 
-	public function getLists() {
+	public function getLists($pattern=false) {
+		if ($pattern == "*") {
+			$pattern = false; // micro-optimization
+		}
+		if ($pattern != false) {
+			$pattern = str_replace('*', '.*', $pattern);
+			$pattern = '/^' . $pattern . '$/';
+		}
 		$dirP = opendir('.');
 		$lists = array();
 		while ($subdir = readdir($dirP)) {
 			if (is_dir($subdir) && substr($subdir, 0, 1) != '.') {
 				// presence of "lock" file means this is a list (ezmlm-web's strategy)
 				if ($this->fileExistsInDir('lock', $subdir)) {
+					if ($pattern != false) {
+						// exclude from results if list name doesn't match search pattern
+						if (preg_match($pattern, $subdir) != 1) {
+							continue;
+						}
+					}
 					$lists[] = $subdir;
 				}
 			}
