@@ -17,8 +17,8 @@ class EzmlmService extends BaseService {
 	/** current mailing list if any */
 	protected $listName;
 
-	/** current topic if any */
-	protected $topicName;
+	/** current thread if any */
+	protected $threadName;
 
 	/** current author if any */
 	protected $authorEmail;
@@ -144,14 +144,14 @@ class EzmlmService extends BaseService {
 								case 'subscribers':
 									$this->getSubscribers();
 									break;
-								case 'posters':
-									$this->getPosters();
+								case 'allowed':
+									$this->getAllowed();
 									break;
 								case 'moderators':
 									$this->getModerators();
 									break;
-								case 'topics':
-									$this->getByTopics();
+								case 'threads':
+									$this->getByThreads();
 									break;
 								case 'authors':
 									$this->getByAuthors();
@@ -217,11 +217,11 @@ class EzmlmService extends BaseService {
 		}
 	}
 
-	protected function getPosters() {
+	protected function getAllowed() {
 		// "count" switch ?
 		$count = ($this->getParam('count') !== null);
-		//echo "getPosters(); count : "; var_dump($count);
-		$res = $this->lib->getPosters($count);
+		//echo "getAllowed(); count : "; var_dump($count);
+		$res = $this->lib->getAllowed($count);
 		if ($count) {
 			$this->sendJson(count($res)); // bare number
 		} else {
@@ -242,45 +242,70 @@ class EzmlmService extends BaseService {
 	}
 
 	/**
-	 * Entry point for /topics/* URIs
+	 * Entry point for /threads/* URIs
 	 */
-	protected function getByTopics() {
+	protected function getByThreads() {
 		// no more resources ?
 		if (count($this->resources) == 0) {
-			// "count" switch ?
-			$count = ($this->getParam('count') !== null);
-			$this->getAllTopics($count);
+			$this->getAllThreads();
 		} else {
-			// storing topic name
-			$this->topicName = array_shift($this->resources);
-			// no more resoures ?
-			if (count($this->resources) == 0) {
-				$this->getTopicInfo();
+			$nextResource = array_shift($this->resources);
+			if ($nextResource == "search") {
+				// no more resources ?
+				if (count($this->resources) == 0) {
+					$this->usage();
+				} else {
+					$this->searchThreads($this->resources[0]);
+				}
 			} else {
-				$nextResource = array_shift($this->resources);
-				switch ($nextResource) {
-					case "messages":
-						$this->getMessagesByTopic();
-						break;
-					default:
-						$this->usage();
-						return false;
+				// storing thread name
+				$this->threadName = array_shift($this->resources);
+				// no more resoures ?
+				if (count($this->resources) == 0) {
+					$this->getThreadInfo();
+				} else {
+					$nextResource = array_shift($this->resources);
+					switch ($nextResource) {
+						case "messages":
+							$this->getMessagesByThread();
+							break;
+						default:
+							$this->usage();
+							return false;
+					}
 				}
 			}
 		}
 	}
 
-	protected function getAllTopics() {
-		echo "getAllTopics()";
+	protected function getAllThreads() {
+		$count = ($this->getParam('count') !== null);
+		//echo "getAllThreads()";
+		if ($count) {
+			$res = $this->lib->countAllThreads();
+			$this->sendJson($res);
+		} else {
+			$threads = $this->lib->getAllThreads();
+			$this->sendMultipleResults($threads);
+		}
 	}
 
-	protected function getTopicInfo() {
-		echo "getTopicInfo()";
+	/**
+	 * Searches among available lists
+	 */
+	protected function searchThreads($pattern) {
+		//echo "Search threads: $pattern\n";
+		$threads = $this->lib->getAllThreads($pattern);
+		$this->sendMultipleResults($threads);
 	}
 
-	protected function getMessagesByTopic() {
+	protected function getThreadInfo() {
+		echo "getThreadInfo()";
+	}
+
+	protected function getMessagesByThread() {
 		// @TODO detect /latest, /search, /id/(next|previous) et ?count
-		echo "getMessagesByTopic()";
+		echo "getMessagesByThread()";
 	}
 
 	/**
@@ -302,8 +327,8 @@ class EzmlmService extends BaseService {
 			} else {
 				$nextResource = array_shift($this->resources);
 				switch ($nextResource) {
-					case "topics":
-						$this->getTopicsByAuthor();
+					case "threads":
+						$this->getThreadsByAuthor();
 						break;
 					case "messages":
 						$this->getMessagesByAuthor();
@@ -324,7 +349,7 @@ class EzmlmService extends BaseService {
 		echo "getAuthorInfo()";
 	}
 
-	protected function getTopicsByAuthor() {
+	protected function getThreadsByAuthor() {
 		// @TODO detect /latest et ?count
 	}
 
@@ -464,7 +489,7 @@ class EzmlmService extends BaseService {
 		echo "modifyListOptions()";
 	}
 
-	// lists, subscribers, posters, moderators
+	// lists, subscribers, allowed, moderators
 	protected function post() {
 		// positive response by default
 		http_response_code(201);
@@ -504,7 +529,7 @@ class EzmlmService extends BaseService {
 							case "subscribers":
 								$this->addSubscriber($jsonData);
 								break;
-							case "posters":
+							case "allowed":
 								$this->addPoster($jsonData);
 								break;
 							case "moderators":
@@ -592,7 +617,7 @@ class EzmlmService extends BaseService {
 		}
 	}
 
-	// list, subscriber, poster, moderator, message
+	// list, subscriber, allowed, moderator, message
 	protected function delete() {
 		// positive response by default
 		http_response_code(200);
@@ -629,7 +654,7 @@ class EzmlmService extends BaseService {
 								case "subscribers":
 									$this->deleteSubscriber($argument);
 									break;
-								case "posters":
+								case "allowed":
 									$this->deletePoster($argument);
 									break;
 								case "moderators":

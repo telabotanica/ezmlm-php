@@ -455,6 +455,64 @@ class Ezmlm {
 		return $message;
 	}
 
+	/**
+	 * Returns the number of threads existing in the current list's archive
+	 * @WARNING assumes that "wc" executable is present in /usr/bin
+	 * @WARNING raw counting, does not try to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
+	 */
+	protected function countThreadsFromArchive() {
+		$threadsFolder = $this->listPath . '/archive/threads';
+		$command = "cat $threadsFolder/* | /usr/bin/wc -l";
+		exec($command, $output);
+		//echo "CMD: $command\n";
+
+		return intval($output[0]);
+	}
+
+	/**
+	 * Reads and returns all threads in the current list's archive. If $pattern is set,
+	 * only returns threads whose subject matches $pattern
+	 */
+	protected function readThreadsFromArchive($pattern=false) {
+		if ($pattern == "*") {
+			$pattern = false; // micro-optimization
+		}
+		if ($pattern != false) {
+			$pattern = str_replace('*', '.*', $pattern);
+			$pattern = '/^' . $pattern . '$/i';
+		}
+		// read all threads files in chronological order
+		$threadsFolder = $this->listPath . '/archive/threads';
+		$threadFiles = scandir($threadsFolder);
+		array_shift($threadFiles); // remove "."
+		array_shift($threadFiles); // remove ".."
+		//var_dump($threadFiles);
+		$threads = array();
+		foreach ($threadFiles as $tf) {
+			$subthreads = file($threadsFolder . '/' . $tf);
+			foreach ($subthreads as $st) {
+				preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.+)$/', $st, $matches);
+				//var_dump($matches);
+				$firstMessageId = $matches[1];
+				$subjectHash = $matches[2];
+				$nbMessages = $matches[3];
+				$subject = $matches[4];
+				if ($pattern == false || preg_match($pattern, $subject)) {
+					$threads[] = array(
+						"first_message_id" => $firstMessageId,
+						"subject_hash" => $subjectHash,
+						"nb_messages" => $nbMessages,
+						"subject" => $subject
+					);
+				}
+			}
+		}
+		//var_dump($threads);
+		// attempt to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
+		// reverse array to get most recent threads first
+		return $threads;
+	}
+
 	// ------------------ API METHODS -----------------------------
 
 	/**
@@ -497,7 +555,7 @@ class Ezmlm {
 		}
 		if ($pattern != false) {
 			$pattern = str_replace('*', '.*', $pattern);
-			$pattern = '/^' . $pattern . '$/';
+			$pattern = '/^' . $pattern . '$/i';
 		}
 		$dirP = opendir('.');
 		$lists = array();
@@ -701,5 +759,17 @@ class Ezmlm {
 		$this->checkValidList();
 		$msg = $this->readMessage($id, $contents);
 		return $msg;
+	}
+
+	public function getAllThreads($pattern=false) {
+		$this->checkValidList();
+		$threads = $this->readThreadsFromArchive($pattern);
+		return $threads;
+	}
+
+	public function countAllThreads() {
+		$this->checkValidList();
+		$nb = $this->countThreadsFromArchive();
+		return $nb;
 	}
 }
