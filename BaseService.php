@@ -91,7 +91,7 @@ class BaseService {
 	protected function sendJson($json, $code=200) {
 		header('Content-type: application/json');
 		http_response_code($code);
-		echo json_encode($json);
+		echo json_encode($json, JSON_UNESCAPED_UNICODE);
 		exit;
 	}
 

@@ -253,6 +253,19 @@ class Ezmlm {
 		return $hash;
 	}
 
+	/**
+	 * Chechs if a string is valid UTF-8; if not, converts it from $fallbackCharset
+	 * to UTF-8; returns an array containing the UTFized string, and a boolean
+	 * telling if a conversion was performed
+	 */
+	protected function utfize($str, $fallbackCharset='ISO-8859-1') {
+		$valid_utf8 = preg_match('//u', $str);
+		if (! $valid_utf8) {
+			$str = iconv($fallbackCharset, "UTF-8//TRANSLIT", $str);
+		}
+		return array($str, ($valid_utf8 !== false));
+	}
+
 	// ------------------ PARSING METHODS -------------------------
 
 	protected function computeSubfolderAndId($id) {
@@ -493,24 +506,57 @@ class Ezmlm {
 			foreach ($subthreads as $st) {
 				preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.+)$/', $st, $matches);
 				//var_dump($matches);
-				$firstMessageId = $matches[1];
+				$lastMessageId = $matches[1];
 				$subjectHash = $matches[2];
 				$nbMessages = $matches[3];
 				$subject = $matches[4];
 				if ($pattern == false || preg_match($pattern, $subject)) {
-					$threads[] = array(
-						"first_message_id" => $firstMessageId,
+					list($subject, $charsetConverted) = $this->utfize($subject);
+					$thread = array(
+						"last_message_id" => $lastMessageId,
 						"subject_hash" => $subjectHash,
 						"nb_messages" => $nbMessages,
-						"subject" => $subject
+						"month_created" => $tf,
+						"subject" => $subject,
+						"charset_converted" => $charsetConverted
 					);
+					// might see the same subject hash in multiple thread files (multi-month thread) but
+					// thread files are read chronologically so latest data always overwrite previous ones
+					$threads[$subjectHash] = $thread;
 				}
 			}
 		}
+		//usort($threads, array($this, 'tri'));
 		//var_dump($threads);
+		//exit;
+		// var_dump($threads);
+
 		// attempt to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
+		$this->attemptToMergeThreads($threads);
+		// get subject informations from subjects/ folder (author, first message etc.)
+		foreach ($threads as &$thread) {
+			$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
+		}
+		// get last message informations from index file (last message date, last author etc.)
+		foreach ($threads as &$thread) {
+			$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
+		}
+		// include all messages ? with contents ? (@TODO paginate)
 		// reverse array to get most recent threads first
+		// eliminate associative keys to preserve order => @TODO move this to service class ?
 		return $threads;
+	}
+
+	/**
+	 * Tries to detect subjects that were incorrectly separated into 2 or more threads, because
+	 * of encoding problems, "Re: " ou "Fwd: " mentions, and so on; @WARNING 2 totally different
+	 * threads might have the same subject string, so make sure there really was an encoding or
+	 * mention problem before merging !
+	 */
+	protected function attemptToMergeThreads(&$threads) {
+		// detect if subject string is problematic
+		// try to RAM it (reductio ad minima)
+		// try to merge it or overwrite subject with RAMed subject
 	}
 
 	// ------------------ API METHODS -----------------------------
