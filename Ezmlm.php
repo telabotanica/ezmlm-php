@@ -259,6 +259,11 @@ class Ezmlm {
 	 * telling if a conversion was performed
 	 */
 	protected function utfize($str, $fallbackCharset='ISO-8859-1') {
+		$result = $this->utfizeAndStats($str, $fallbackCharset);
+		return $result[0];
+	}
+
+	protected function utfizeAndStats($str, $fallbackCharset='ISO-8859-1') {
 		$valid_utf8 = preg_match('//u', $str);
 		if (! $valid_utf8) {
 			$str = iconv($fallbackCharset, "UTF-8//TRANSLIT", $str);
@@ -288,12 +293,12 @@ class Ezmlm {
 		if ($match1[1] != '') {
 			// formatted return
 			$message = array(
-				"message_id" => $match1[1],
+				"message_id" => intval($match1[1]),
 				"subject_hash" => $match1[2],
-				"subject" => $match1[3],
+				"subject" => $this->utfize($match1[3]),
 				"message_date" => $match2[1] . ' ' . $match2[2] . ' ' . $match2[3] . ' ' . $match2[4],
 				"author_hash" => $match2[5],
-				"author_name" => $match2[6]
+				"author_name" => $this->utfize($match2[6])
 			);
 		}
 		return $message;
@@ -511,11 +516,11 @@ class Ezmlm {
 				$nbMessages = $matches[3];
 				$subject = $matches[4];
 				if ($pattern == false || preg_match($pattern, $subject)) {
-					list($subject, $charsetConverted) = $this->utfize($subject);
+					list($subject, $charsetConverted) = $this->utfizeAndStats($subject);
 					$thread = array(
-						"last_message_id" => $lastMessageId,
+						"last_message_id" => intval($lastMessageId),
 						"subject_hash" => $subjectHash,
-						"nb_messages" => $nbMessages,
+						"nb_messages" => intval($nbMessages),
 						"month_created" => $tf,
 						"subject" => $subject,
 						"charset_converted" => $charsetConverted
@@ -533,18 +538,76 @@ class Ezmlm {
 
 		// attempt to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
 		$this->attemptToMergeThreads($threads);
-		// get subject informations from subjects/ folder (author, first message etc.)
+
+		// get subject informations from subjects/ folder (author, first message, last message etc.)
 		foreach ($threads as &$thread) {
 			$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
+			$thread["first_message_id"] = $this->getThreadsFirstMessageId($thread["subject_hash"]);
+			// small optimization
+			//echo "FMI: " . $thread["first_message_id"] . ", LMI: " . $thread["last_message_id"] . "<br/>";
+			if ($thread["first_message_id"] != $thread["last_message_id"]) {
+				//echo "read!<br/>";
+				$thread["first_message"] = $this->readMessage($thread["first_message_id"], false);
+			} else {
+				//echo "--<br/>";
+				$thread["first_message"] = $thread["last_message"];
+			}
+			// author of first message is the author of the thread @TODO remove unnecessary redundancy ?
+			$thread['author'] = $thread["first_message"]["author_name"];
 		}
-		// get last message informations from index file (last message date, last author etc.)
-		foreach ($threads as &$thread) {
-			$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
-		}
+
 		// include all messages ? with contents ? (@TODO paginate)
 		// reverse array to get most recent threads first
 		// eliminate associative keys to preserve order => @TODO move this to service class ?
 		return $threads;
+	}
+
+	/**
+	 * Returns the id of the first message in the thread of hash $hash
+	 */
+	protected function getThreadsFirstMessageId($hash) {
+		$ids = $this->getThreadsMessagesIds($hash, 1);
+		return $ids[0];
+	}
+
+	/**
+	 * Returns the ids of the $limit first messages in the thread of hash $hash
+	 */
+	protected function getThreadsMessagesIds($hash, $limit=false) {
+		$subjectFile = $this->getSubjectFile($hash);
+		// read 2nd line (1st message) @WARNING assumes that sed is present on the system
+		// $command = "sed '2q;d' $subjectFile";
+		$command = "grep";
+		if (is_numeric($limit) && $limit > 0) {
+			$command .= " -m $limit";
+		}
+		$command .= " '^.*[0-9]\+:[0-9]\+:[a-z]\+ .\+$' $subjectFile";
+		exec($command, $output);
+		//echo "$hash <br/>";
+		//var_dump($output); echo "<br/>";
+		//exit;
+		$ids = array();
+		foreach ($output as $line) {
+			// regexp starts with .* because sometimes the subject (1st line) contains a \n and
+			// thus contaminates the second line (wtf?)
+			preg_match('/^(.*[^0-9])?([0-9]+):([0-9]+):([a-z]+) (.+)$/', $line, $matches);
+			//echo $matches[2] . "<br/>";
+			$ids[] = intval($matches[2]);
+		}
+		//var_dump($ids);
+		return $ids;
+	}
+
+	/**
+	 * Computes and returns the path of the file in /subjects archive folder
+	 * that concerns the subject of hash $hash
+	 */
+	protected function getSubjectFile($hash) {
+		$hash2f = substr($hash,0,2);
+		$hashEnd = substr($hash,2);
+		$subjectsFolder = $this->listPath . '/archive/subjects';
+		$subjectFile = $subjectsFolder . '/' . $hash2f . '/' . $hashEnd;
+		return $subjectFile;
 	}
 
 	/**
