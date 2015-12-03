@@ -17,17 +17,11 @@ class EzmlmService extends BaseService {
 	/** current mailing list if any */
 	protected $listName;
 
-	/** current thread if any */
-	protected $threadName;
-
-	/** current author if any */
-	protected $authorEmail;
-
-	/** current message if any */
-	protected $messageId;
-
-	/** default number of messages returned by "latest messages" commands */
+	/** default number of messages returned by "latest messages" command */
 	protected $defaultMessagesLimit;
+
+	/** default number of threads returned by "latest threads" command */
+	protected $defaultThreadsLimit;
 
 	public function __construct() {
 		parent::__construct();
@@ -36,23 +30,19 @@ class EzmlmService extends BaseService {
 
 		// additional settings
 		$this->defaultMessagesLimit = $this->config['settings']['defaultMessagesLimit'];
+		$this->defaultThreadsLimit = $this->config['settings']['defaultThreadsLimit'];
 	}
 
 	/**
 	 * Sends multiple results in a JSON object
 	 */
-	protected function sendMultipleResults($results/*, $errorMessage="no results", $errorCode=404*/) {
-		//var_dump($results); exit;
-		//if ($results == false) {
-		//	$this->sendError($errorMessage, $errorCode);
-		//} else {
-			$this->sendJson(
-				array(
-					"count" => count($results),
-					"results" => $results
-				)
-			);
-		//}
+	protected function sendMultipleResults($results) {
+		$this->sendJson(
+			array(
+				"count" => count($results),
+				"results" => $results
+			)
+		);
 	}
 
 	/**
@@ -250,30 +240,40 @@ class EzmlmService extends BaseService {
 			$this->getAllThreads();
 		} else {
 			$nextResource = array_shift($this->resources);
-			if ($nextResource == "search") {
-				// no more resources ?
-				if (count($this->resources) == 0) {
-					$this->usage();
-				} else {
-					$this->searchThreads($this->resources[0]);
-				}
-			} else {
-				// storing thread name
-				$this->threadName = array_shift($this->resources);
-				// no more resoures ?
-				if (count($this->resources) == 0) {
-					$this->getThreadInfo();
-				} else {
-					$nextResource = array_shift($this->resources);
-					switch ($nextResource) {
-						case "messages":
-							$this->getMessagesByThread();
-							break;
-						default:
-							$this->usage();
-							return false;
+			switch ($nextResource) {
+				case "search":
+					// no more resources ?
+					if (count($this->resources) == 0) {
+						$this->usage();
+					} else {
+						$this->searchThreads($this->resources[0]);
 					}
-				}
+					break;
+				case "latest":
+					// more resources ?
+					$limit = false;
+					if (count($this->resources) > 0) {
+						$limit = array_shift($this->resources);
+					}
+					$this->getLatestThreads($limit);
+					break;
+				default:
+					// mention of a specific thread
+					$threadHash = $nextResource;
+					// no more resoures ?
+					if (count($this->resources) == 0) {
+						$this->getThreadInfo($threadHash);
+					} else {
+						$nextResource = array_shift($this->resources);
+						switch ($nextResource) {
+							case "messages":
+								$this->getMessagesByThread($threadHash);
+								break;
+							default:
+								$this->usage();
+								return false;
+						}
+					}
 			}
 		}
 	}
@@ -285,7 +285,7 @@ class EzmlmService extends BaseService {
 			$res = $this->lib->countAllThreads();
 			$this->sendJson($res);
 		} else {
-			$threads = $this->lib->getAllThreads();
+			$threads = $this->lib->getAllThreads(false, $details);
 			$this->sendMultipleResults($threads);
 		}
 	}
@@ -294,18 +294,36 @@ class EzmlmService extends BaseService {
 	 * Searches among available lists
 	 */
 	protected function searchThreads($pattern) {
-		//echo "Search threads: $pattern\n";
-		$threads = $this->lib->getAllThreads($pattern);
+		$details = ($this->getParam('details') !== null);
+		//echo "Search threads: $pattern, $details\n";
+		$threads = $this->lib->getAllThreads($pattern, $details);
 		$this->sendMultipleResults($threads);
 	}
 
-	protected function getThreadInfo() {
-		echo "getThreadInfo()";
+	protected function getLatestThreads($limit=false) {
+		if ($limit === false) {
+			$limit = $this->defaultThreadsLimit;
+		}
+		$details = ($this->getParam('details') !== null);
+		//$contents = $this->parseBool($this->getParam('contents'));
+		//echo "getLatestThreads($limit, $details)";
+		$res = $this->lib->getLatestThreads($limit, $details);
+		$this->sendMultipleResults($res);
 	}
 
-	protected function getMessagesByThread() {
+	protected function getThreadInfo($hash) {
+		//echo "getThreadInfo($hash)";
+		$details = ($this->getParam('details') !== null);
+		$res = $this->lib->getThread($hash, $details);
+		$this->sendJson(array(
+			"hash" => $hash,
+			"thread" => $res
+		));
+	}
+
+	protected function getMessagesByThread($hash) {
 		// @TODO detect /latest, /search, /id/(next|previous) et ?count
-		echo "getMessagesByThread()";
+		echo "getMessagesByThread($hash)";
 	}
 
 	/**
@@ -320,7 +338,7 @@ class EzmlmService extends BaseService {
 			$this->getAllAuthors($count);
 		} else {
 			// storing author's email
-			$this->authorEmail = array_shift($this->resources);
+			$authorEmail = array_shift($this->resources);
 			// no more resoures ?
 			if (count($this->resources) == 0) {
 				$this->getAuthorInfo();

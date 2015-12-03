@@ -254,21 +254,33 @@ class Ezmlm {
 	}
 
 	/**
-	 * Chechs if a string is valid UTF-8; if not, converts it from $fallbackCharset
-	 * to UTF-8; returns an array containing the UTFized string, and a boolean
-	 * telling if a conversion was performed
+	 * Checks if a string is valid UTF-8; if not, converts it from $fallbackCharset
+	 * to UTF-8; returns the UTFized string
 	 */
 	protected function utfize($str, $fallbackCharset='ISO-8859-1') {
 		$result = $this->utfizeAndStats($str, $fallbackCharset);
 		return $result[0];
 	}
 
+	/**
+	 * Checks if a string is valid UTF-8; if not, converts it from $fallbackCharset
+	 * to UTF-8; returns an array containing the UTFized string, and a boolean
+	 * telling if a conversion was performed
+	 */
 	protected function utfizeAndStats($str, $fallbackCharset='ISO-8859-1') {
 		$valid_utf8 = preg_match('//u', $str);
 		if (! $valid_utf8) {
 			$str = iconv($fallbackCharset, "UTF-8//TRANSLIT", $str);
 		}
 		return array($str, ($valid_utf8 !== false));
+	}
+
+	/**
+	 * Comparison function for usort() returning threads having the greatest
+	 * "last_message_id" first
+	 */
+	protected function sortMostRecentThreads($a, $b) {
+		return $b['last_message_id'] - $a['last_message_id'];
 	}
 
 	// ------------------ PARSING METHODS -------------------------
@@ -488,10 +500,12 @@ class Ezmlm {
 	}
 
 	/**
-	 * Reads and returns all threads in the current list's archive. If $pattern is set,
-	 * only returns threads whose subject matches $pattern
+	 * Reads and returns all threads in the current list's archive, most recent activity first.
+	 * If $pattern is set, only returns threads whose subject matches $pattern. Il $limit is set,
+	 * only returns the $limit most recent (regarding activity ie. last message id) threads. If
+	 * $flMessageDetails is set, returns details for first and last message (take a lot more time)
 	 */
-	protected function readThreadsFromArchive($pattern=false) {
+	protected function readThreadsFromArchive($pattern=false, $limit=false, $flMessageDetails=false) {
 		if ($pattern == "*") {
 			$pattern = false; // micro-optimization
 		}
@@ -509,57 +523,102 @@ class Ezmlm {
 		foreach ($threadFiles as $tf) {
 			$subthreads = file($threadsFolder . '/' . $tf);
 			foreach ($subthreads as $st) {
-				preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.+)$/', $st, $matches);
-				//var_dump($matches);
-				$lastMessageId = $matches[1];
-				$subjectHash = $matches[2];
-				$nbMessages = $matches[3];
-				$subject = $matches[4];
-				if ($pattern == false || preg_match($pattern, $subject)) {
-					list($subject, $charsetConverted) = $this->utfizeAndStats($subject);
-					$thread = array(
-						"last_message_id" => intval($lastMessageId),
-						"subject_hash" => $subjectHash,
-						"nb_messages" => intval($nbMessages),
-						"month_created" => $tf,
-						"subject" => $subject,
-						"charset_converted" => $charsetConverted
-					);
+				$thread = $this->parseThreadLine($st, $pattern);
+				if ($thread !== false) {
 					// might see the same subject hash in multiple thread files (multi-month thread) but
 					// thread files are read chronologically so latest data always overwrite previous ones
-					$threads[$subjectHash] = $thread;
+					$threads[$thread["subject_hash"]] = $thread;
 				}
 			}
 		}
-		//usort($threads, array($this, 'tri'));
 		//var_dump($threads);
 		//exit;
-		// var_dump($threads);
 
 		// attempt to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
 		$this->attemptToMergeThreads($threads);
 
+		// sort by last message id descending (newer messages have greater ids) and limit;
+		// usort has the advantage of removing natural keys here, thus sending a list whose
+		// order will be preserved
+		usort($threads, array($this, 'sortMostRecentThreads'));
+		if ($limit !== false) {
+			$threads = array_slice($threads, 0, $limit);
+		}
+
 		// get subject informations from subjects/ folder (author, first message, last message etc.)
-		foreach ($threads as &$thread) {
-			$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
-			$thread["first_message_id"] = $this->getThreadsFirstMessageId($thread["subject_hash"]);
-			// small optimization
-			//echo "FMI: " . $thread["first_message_id"] . ", LMI: " . $thread["last_message_id"] . "<br/>";
-			if ($thread["first_message_id"] != $thread["last_message_id"]) {
-				//echo "read!<br/>";
-				$thread["first_message"] = $this->readMessage($thread["first_message_id"], false);
-			} else {
-				//echo "--<br/>";
-				$thread["first_message"] = $thread["last_message"];
+		// @WARNING takes a LOT of time for large lists
+		if ($flMessageDetails) {
+			foreach ($threads as &$thread) {
+				$this->readThreadsFirstAndLastMessageDetails($thread);
 			}
-			// author of first message is the author of the thread @TODO remove unnecessary redundancy ?
-			$thread['author'] = $thread["first_message"]["author_name"];
 		}
 
 		// include all messages ? with contents ? (@TODO paginate)
-		// reverse array to get most recent threads first
-		// eliminate associative keys to preserve order => @TODO move this to service class ?
 		return $threads;
+	}
+
+	/**
+	 * Reads a thread information from the archive; if $details is true, will get details
+	 * of first and last message
+	 */
+	protected function readThread($hash, $details=false) {
+		$threadsFolder = $this->listPath . '/archive/threads';
+		// find thread hash mention in threads files
+		$command = "grep $hash -h -m 1 $threadsFolder/*";
+		exec($command, $output);
+		if (count($output) == 0) {
+			throw new Exception("Thread [$hash] not found in archive");
+		}
+		$line = $output[0];
+		$thread = $this->parseThreadLine($line);
+		if ($details) {
+			$this->readThreadsFirstAndLastMessageDetails($thread);
+		}
+		return $thread;
+	}
+
+	// $pattern is applied here to optimize a bit
+	protected function parseThreadLine($line, $pattern=false) {
+		$thread = false;
+		preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.+)$/', $line, $matches);
+		//var_dump($matches);
+		$lastMessageId = $matches[1];
+		$subjectHash = $matches[2];
+		$nbMessages = $matches[3];
+		$subject = $matches[4];
+		if ($pattern == false || preg_match($pattern, $subject)) {
+			list($subject, $charsetConverted) = $this->utfizeAndStats($subject);
+			$thread = array(
+				"last_message_id" => intval($lastMessageId),
+				"subject_hash" => $subjectHash,
+				"nb_messages" => intval($nbMessages),
+				"subject" => $subject,
+				"charset_converted" => $charsetConverted
+			);
+		}
+		return $thread;
+	}
+
+	/**
+	 * Reads the first and last message metadata for thread $thread, and infers the author of the thread
+	 */
+	protected function readThreadsFirstAndLastMessageDetails(&$thread) {
+		$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
+		$thread["first_message_id"] = $this->getThreadsFirstMessageId($thread["subject_hash"]);
+		// small optimization
+		//echo "FMI: " . $thread["first_message_id"] . ", LMI: " . $thread["last_message_id"] . "<br/>";
+		if ($thread["first_message_id"] != $thread["last_message_id"]) {
+			//echo "read!<br/>";
+			$thread["first_message"] = $this->readMessage($thread["first_message_id"], false);
+		} else {
+			//echo "--<br/>";
+			$thread["first_message"] = $thread["last_message"];
+		}
+		// author of first message is the author of the thread @TODO remove unnecessary redundancy ?
+		$thread['author'] = $thread["first_message"]["author_name"];
+	}
+
+	protected function readThreadsMessages() {
 	}
 
 	/**
@@ -870,9 +929,9 @@ class Ezmlm {
 		return $msg;
 	}
 
-	public function getAllThreads($pattern=false) {
+	public function getAllThreads($pattern=false, $details=false) {
 		$this->checkValidList();
-		$threads = $this->readThreadsFromArchive($pattern);
+		$threads = $this->readThreadsFromArchive($pattern, false, $details);
 		return $threads;
 	}
 
@@ -880,5 +939,17 @@ class Ezmlm {
 		$this->checkValidList();
 		$nb = $this->countThreadsFromArchive();
 		return $nb;
+	}
+
+	public function getLatestThreads($limit=10, $details=false) {
+		$this->checkValidList();
+		$threads = $this->readThreadsFromArchive(false, $limit, $details);
+		return $threads;
+	}
+
+	public function getThread($hash, $details=true) {
+		$this->checkValidList();
+		$thread = $this->readThread($hash, $details);
+		return $thread;
 	}
 }

@@ -2,6 +2,7 @@
 	"domain_root" : "http://localhost",
 	"base_uri" : "/ezmlm-php",
 	"settings" : {
-		"defaultMessagesLimit" : 10
+		"defaultMessagesLimit" : 10,
+		"defaultThreadsLimit" : 10
 	}
 }
