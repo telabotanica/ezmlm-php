@@ -283,6 +283,20 @@ class Ezmlm {
 		return $b['last_message_id'] - $a['last_message_id'];
 	}
 
+	/**
+	 * Converts a "*" based pattern to a regexp
+	 */
+	protected function convertPattern($pattern) {
+		if ($pattern == "*") {
+			$pattern = false; // micro-optimization
+		}
+		if ($pattern != false) {
+			$pattern = str_replace('*', '.*', $pattern);
+			$pattern = '/^' . $pattern . '$/i';
+		}
+		return $pattern;
+	}
+
 	// ------------------ PARSING METHODS -------------------------
 
 	protected function computeSubfolderAndId($id) {
@@ -414,10 +428,10 @@ class Ezmlm {
 			// @TODO use message parser !!
 			if ($includeMessages === true) {
 				$messageContents = $this->readMessageContents($messageId);
-				$messages[$messageId]["message_contents"] = $messageContents;
+				$messages[$messageId]["message_contents"] = $this->utfize($messageContents);
 			} elseif ($includeMessages === "abstract") {
 				$messageAbstract = $this->readMessageAbstract($messageId);
-				$messages[$messageId]["message_contents"] = $messageAbstract;
+				$messages[$messageId]["message_contents"] = $this->utfize($messageAbstract);
 			}
 			$idx += 2;
 			$read++;
@@ -442,10 +456,10 @@ class Ezmlm {
 		$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
 		if ($contents === true) {
 			$messageContents = $this->readMessageContents($id);
-			$ret["message_contents"] = $messageContents;
+			$ret["message_contents"] = $this->utfize($messageContents);
 		} elseif ($contents === "abstract") {
 			$messageAbstract = $this->readMessageAbstract($id);
-			$ret["message_contents"] = $messageAbstract;
+			$ret["message_contents"] = $this->utfize($messageAbstract);
 		}
 		return $ret;
 	}
@@ -506,13 +520,7 @@ class Ezmlm {
 	 * $flMessageDetails is set, returns details for first and last message (take a lot more time)
 	 */
 	protected function readThreadsFromArchive($pattern=false, $limit=false, $flMessageDetails=false) {
-		if ($pattern == "*") {
-			$pattern = false; // micro-optimization
-		}
-		if ($pattern != false) {
-			$pattern = str_replace('*', '.*', $pattern);
-			$pattern = '/^' . $pattern . '$/i';
-		}
+		$pattern = $this->convertPattern($pattern);
 		// read all threads files in chronological order
 		$threadsFolder = $this->listPath . '/archive/threads';
 		$threadFiles = scandir($threadsFolder);
@@ -618,7 +626,23 @@ class Ezmlm {
 		$thread['author'] = $thread["first_message"]["author_name"];
 	}
 
-	protected function readThreadsMessages() {
+	/**
+	 * Reads all messages from the thread of hash $hash
+	 */
+	protected function readThreadsMessages($hash, $pattern=false, $contents=false) {
+		$pattern = $this->convertPattern($pattern);
+		$ids = $this->getThreadsMessagesIds($hash);
+		// newest messages first
+		$ids = array_reverse($ids);
+		// read messages
+		$messages = array();
+		foreach ($ids as $id) {
+			$message = $this->readMessage($id, $contents);
+			if ($pattern == false || preg_match($pattern, $contents)) {
+				$messages[] = $message;
+			}
+		}
+		return $messages;
 	}
 
 	/**
@@ -718,13 +742,7 @@ class Ezmlm {
 	}
 
 	public function getLists($pattern=false) {
-		if ($pattern == "*") {
-			$pattern = false; // micro-optimization
-		}
-		if ($pattern != false) {
-			$pattern = str_replace('*', '.*', $pattern);
-			$pattern = '/^' . $pattern . '$/i';
-		}
+		$pattern = $this->convertPattern($pattern);
 		$dirP = opendir('.');
 		$lists = array();
 		while ($subdir = readdir($dirP)) {
@@ -951,5 +969,18 @@ class Ezmlm {
 		$this->checkValidList();
 		$thread = $this->readThread($hash, $details);
 		return $thread;
+	}
+
+	public function getAllMessagesByThread($hash, $pattern=false, $contents=false) {
+		$this->checkValidList();
+		$messages = $this->readThreadsMessages($hash, $pattern, $contents);
+		return $messages;
+	}
+
+	public function countMessagesFromThread($hash) {
+		$this->checkValidList();
+		$thread = $this->readThread($hash);
+		$nb = $thread["nb_messages"];
+		return $nb;
 	}
 }

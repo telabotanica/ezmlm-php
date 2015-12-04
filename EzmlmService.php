@@ -322,9 +322,88 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function getMessagesByThread($hash) {
-		// @TODO detect /latest, /search, /id/(next|previous) et ?count
-		echo "getMessagesByThread($hash)";
+		// no more resources ?
+		if (count($this->resources) == 0) {
+			$this->getAllMessagesByThread($hash);
+		} else {
+			$nextResource = array_shift($this->resources);
+			switch ($nextResource) {
+				case "latest":
+					// more resources ?
+					$limit = false;
+					if (count($this->resources) > 0) {
+						$limit = array_shift($this->resources);
+					}
+					$this->getLatestMessagesByThread($hash, $limit);
+					break;
+				case "search":
+					// no more resources ?
+					if (count($this->resources) == 0) {
+						$this->usage();
+					} else {
+						$this->searchMessagesByThread($hash, $this->resources[0]);
+					}
+					break;
+				default:
+					// message number
+					// this should be a message id
+					if (is_numeric($nextResource)) {
+						$messageId = $nextResource;
+						// no more resoures ?
+						if (count($this->resources) == 0) {
+							$this->getMessage($messageId);
+						} else {
+							$nextResource = array_shift($this->resources);
+							switch ($nextResource) {
+								case "next":
+									$this->getNextMessageByThread($hash, $messageId);
+									break;
+								case "previous":
+									$this->getPreviousMessageByThread($hash, $messageId);
+									break;
+								default:
+									$this->usage();
+									return false;
+							}
+						}
+					} else {
+						$this->usage();
+						return false;
+					}
+			}
+		}
 	}
+
+	protected function getAllMessagesByThread($hash) {
+		$count = ($this->getParam('count') !== null);
+		$contents = $this->parseBool($this->getParam('contents'));
+		//echo "Get all messages by thread : $count, $contents\n";
+		if ($count) {
+			$nb = $this->lib->countMessagesFromThread($hash);
+			$this->sendJson($nb);
+		} else {
+			$messages = $this->lib->getAllMessagesByThread($hash, false, $contents);
+			$this->sendMultipleResults($messages);
+		}
+	}
+
+	protected function getLatestMessagesByThread($hash, $limit=false) {
+		if ($limit === false) {
+			$limit = $this->defaultMessagesLimit;
+		}
+		$contents = $this->parseBool($this->getParam('contents'));
+		echo "Get latest messages by thread: $pattern, $contents\n";
+		$messages = $this->lib->getLatestMessagesByThread($limit, $contents);
+		$this->sendMultipleResults($messages);
+	}
+
+	protected function searchMessagesByThread($hash, $pattern) {
+		$contents = $this->parseBool($this->getParam('contents'));
+		echo "Search messages by threads: $pattern, $contents\n";
+		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents);
+		$this->sendMultipleResults($messages);
+	}
+
 
 	/**
 	 * Entry point for /authors/* URIs
