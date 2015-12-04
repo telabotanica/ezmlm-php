@@ -1,0 +1,68 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "This file is @generated automatically"
+    ],
+    "hash": "3e3b22c457f2a05cc8ab9b4363c444a2",
+    "content-hash": "5abf20bedb0a7bae9e4ec09f7a404cab",
+    "packages": [
+        {
+            "name": "php-mime-mail-parser/php-mime-mail-parser",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-mime-mail-parser/php-mime-mail-parser.git",
+                "reference": "bd5b876742301b0e54c06527f807378789cfc5bb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-mime-mail-parser/php-mime-mail-parser/zipball/bd5b876742301b0e54c06527f807378789cfc5bb",
+                "reference": "bd5b876742301b0e54c06527f807378789cfc5bb",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=3.7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "eXorus\\PhpMimeMailParser\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "google",
+                    "homepage": "https://code.google.com/p/php-mime-mail-parser"
+                },
+                {
+                    "name": "eXorus",
+                    "homepage": "https://github.com/eXorus/"
+                }
+            ],
+            "description": "This project strives to create a fast and efficient PHP Mime Mail Parser Class using PHP's MailParse Extension",
+            "homepage": "https://github.com/eXorus/php-mime-mail-parser",
+            "keywords": [
+                "mail",
+                "mailparse",
+                "mime"
+            ],
+            "time": "2014-03-17 09:00:58"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": []
+}

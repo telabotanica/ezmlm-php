@@ -1,5 +1,8 @@
 <?php
 
+// composer
+require_once 'vendor/autoload.php';
+
 /**
  * Library for ezmlm discussion lists management
  */
@@ -292,7 +295,7 @@ class Ezmlm {
 		}
 		if ($pattern != false) {
 			$pattern = str_replace('*', '.*', $pattern);
-			$pattern = '/^' . $pattern . '$/i';
+			$pattern = '/^' . $pattern . '$/is'; // case insensitive, multilines
 		}
 		return $pattern;
 	}
@@ -437,6 +440,40 @@ class Ezmlm {
 			$read++;
 		}
 
+		return $messages;
+	}
+
+	protected function searchMessagesInArchive($pattern, $contents=false) {
+		$pregPattern = $this->convertPattern($pattern);
+		if ($pregPattern === false) {
+			throw new Exception('Invalid search pattern');
+		}
+		$archiveDir = $this->listPath . '/archive';
+		$command = 'grep -l -R "' . $pattern . '" ' . $archiveDir;
+		exec($command, $output);
+		//var_dump($output);
+		// message header or attachments moght have matched $pattern - extracting
+		// message text to ensure the match was not a false positive
+		$messages = array();
+		echo "Out: " . count($output) . "<br/>";
+		foreach ($output as $line) {
+			//echo $line . "<br/>";
+			$line = str_replace($archiveDir, '', $line); // strip folder path @TODO find a cleaner way to do this
+			$id = str_replace('/', '', $line);
+			//echo "ID: $id<br/>";
+			// message contents is required to check pattern matching
+			$message = $this->readMessage($id, true);
+			echo "PAT: $pregPattern<br/>";
+			echo "CONT: " . $message["message_contents"] . "<br/>";
+			if (preg_match($pregPattern, $message["message_contents"])) {
+				// if contents was not asked, remove it from results @TODO manage contents=abstract
+				if ($contents == false) {
+					unset($message["message_contents"]);
+				}
+				$messages[] = $message;
+			}
+		}
+		echo "Msg: " . count($messages) . "<br/>";
 		return $messages;
 	}
 
@@ -627,18 +664,21 @@ class Ezmlm {
 	}
 
 	/**
-	 * Reads all messages from the thread of hash $hash
+	 * Reads the $limit most recent messages from the thread of hash $hash
 	 */
-	protected function readThreadsMessages($hash, $pattern=false, $contents=false) {
+	protected function readThreadsMessages($hash, $pattern=false, $contents=false, $limit=false) {
 		$pattern = $this->convertPattern($pattern);
 		$ids = $this->getThreadsMessagesIds($hash);
 		// newest messages first
 		$ids = array_reverse($ids);
+		if (is_numeric($limit) && $limit > 0) {
+			$ids = array_slice($ids, 0, $limit);
+		}
 		// read messages
 		$messages = array();
 		foreach ($ids as $id) {
 			$message = $this->readMessage($id, $contents);
-			if ($pattern == false || preg_match($pattern, $contents)) {
+			if ($pattern == false || preg_match($pattern, $message["message_contents"])) {
 				$messages[] = $message;
 			}
 		}
@@ -654,20 +694,18 @@ class Ezmlm {
 	}
 
 	/**
-	 * Returns the ids of the $limit first messages in the thread of hash $hash
+	 * Returns the ids of the $limit first messages in the thread of hash $hash,
+	 * (first means oldest @TODO inconsistent with other methods, change this ?)
 	 */
 	protected function getThreadsMessagesIds($hash, $limit=false) {
 		$subjectFile = $this->getSubjectFile($hash);
 		// read 2nd line (1st message) @WARNING assumes that sed is present on the system
-		// $command = "sed '2q;d' $subjectFile";
 		$command = "grep";
 		if (is_numeric($limit) && $limit > 0) {
 			$command .= " -m $limit";
 		}
 		$command .= " '^.*[0-9]\+:[0-9]\+:[a-z]\+ .\+$' $subjectFile";
 		exec($command, $output);
-		//echo "$hash <br/>";
-		//var_dump($output); echo "<br/>";
 		//exit;
 		$ids = array();
 		foreach ($output as $line) {
@@ -941,6 +979,12 @@ class Ezmlm {
 		return $msgs;
 	}
 
+	public function searchMessages($pattern, $contents=false) {
+		$this->checkValidList();
+		$msgs = $this->searchMessagesInArchive($pattern, $contents);
+		return $msgs;
+	}
+
 	public function getMessage($id, $contents=true) {
 		$this->checkValidList();
 		$msg = $this->readMessage($id, $contents);
@@ -973,7 +1017,25 @@ class Ezmlm {
 
 	public function getAllMessagesByThread($hash, $pattern=false, $contents=false) {
 		$this->checkValidList();
-		$messages = $this->readThreadsMessages($hash, $pattern, $contents);
+		// if searching is required, message contents will have to be extracted to search among it
+		$callTimeContents = $contents;
+		if ($pattern !== false) {
+			$callTimeContents = true;
+		}
+		$messages = $this->readThreadsMessages($hash, $pattern, $callTimeContents);
+		// in case of non-false $pattern but false $contents, remove messages contents before sending
+		// @TODO support contents=abstract ?
+		if ($pattern !== false && $contents == false) {
+			foreach ($messages as &$mess) {
+				unset($mess["message_contents"]);
+			}
+		}
+		return $messages;
+	}
+
+	public function getLatestMessagesByThread($hash, $limit=10, $contents=false) {
+		$this->checkValidList();
+		$messages = $this->readThreadsMessages($hash, false, $contents, $limit);
 		return $messages;
 	}
 
@@ -982,5 +1044,37 @@ class Ezmlm {
 		$thread = $this->readThread($hash);
 		$nb = $thread["nb_messages"];
 		return $nb;
+	}
+
+	public function getPreviousMessageByThread($hash, $id, $contents=true) {
+		$this->checkValidList();
+		$ids = $this->getThreadsMessagesIds($hash);
+		$key = array_search($id, $ids);
+		if ($key === false) {
+			throw new Exception("Message [$id] not found in thread [$hash]");
+		}
+		// next message has a lower key in the array
+		if ($key == 0) {
+			// @TODO send something nicer, without error ?
+			throw new Exception("Message [$id] is the first in thread [$hash]");
+		}
+		$previousMessage = $this->readMessage($ids[$key-1], $contents);
+		return $previousMessage;
+	}
+
+	public function getNextMessageByThread($hash, $id, $contents=true) {
+		$this->checkValidList();
+		$ids = $this->getThreadsMessagesIds($hash);
+		$key = array_search($id, $ids);
+		if ($key === false) {
+			throw new Exception("Message [$id] not found in thread [$hash]");
+		}
+		// next message has a greater key in the array
+		if ($key == count($ids)-1) {
+			// @TODO send something nicer, without error ?
+			throw new Exception("Message [$id] is the most recent in thread [$hash]");
+		}
+		$nextMessage = $this->readMessage($ids[$key+1], $contents);
+		return $nextMessage;
 	}
 }

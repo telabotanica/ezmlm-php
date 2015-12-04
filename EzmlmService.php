@@ -392,18 +392,29 @@ class EzmlmService extends BaseService {
 			$limit = $this->defaultMessagesLimit;
 		}
 		$contents = $this->parseBool($this->getParam('contents'));
-		echo "Get latest messages by thread: $pattern, $contents\n";
-		$messages = $this->lib->getLatestMessagesByThread($limit, $contents);
+		//echo "Get latest messages by thread: $contents, $limit\n";
+		$messages = $this->lib->getLatestMessagesByThread($hash, $limit, $contents);
 		$this->sendMultipleResults($messages);
 	}
 
 	protected function searchMessagesByThread($hash, $pattern) {
 		$contents = $this->parseBool($this->getParam('contents'));
-		echo "Search messages by threads: $pattern, $contents\n";
+		//echo "Search messages by threads: $pattern, $contents\n";
 		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents);
 		$this->sendMultipleResults($messages);
 	}
 
+	protected function getNextMessageByThread($hash, $id) {
+		$contents = $this->parseBool($this->getParam('contents'));
+		$nextMessage = $this->lib->getNextMessageByThread($hash, $id, $contents);
+		$this->sendJson($nextMessage);
+	}
+
+	protected function getPreviousMessageByThread($hash, $id) {
+		$contents = $this->parseBool($this->getParam('contents'));
+		$previousMessage = $this->lib->getPreviousMessageByThread($hash, $id, $contents);
+		$this->sendJson($previousMessage);
+	}
 
 	/**
 	 * Entry point for /authors/* URIs
@@ -474,7 +485,12 @@ class EzmlmService extends BaseService {
 					$this->getLatestMessages($limit);
 					break;
 				case "search":
-					$this->searchMessages();
+					// more resources ?
+					if (count($this->resources) > 0) {
+						$this->searchMessages(array_shift($this->resources));
+					} else {
+						$this->usage();
+					}
 					break;
 				default:
 					// this should be a message id
@@ -528,18 +544,18 @@ class EzmlmService extends BaseService {
 		$this->sendMultipleResults($res);
 	}
 
-	protected function searchMessages() {
-		echo "searchMessages()";
+	protected function searchMessages($pattern) {
+		$contents = $this->parseBool($this->getParam('contents'));
+		//echo "Search messages: $pattern, $contents\n";
+		$messages = $this->lib->searchMessages($pattern, $contents);
+		$this->sendMultipleResults($messages);
 	}
 
 	protected function getMessage($id) {
 		$contents = $this->parseBool($this->getParam('contents', true));
 		//echo "getMessage() : " . $id;
 		$res = $this->lib->getMessage($id, $contents);
-		$this->sendJson(array(
-			"id" => $id,
-			"message" => $res
-		));
+		$this->sendJson($res);
 	}
 
 	protected function getNextMessage($id) {
