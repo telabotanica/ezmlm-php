@@ -287,9 +287,9 @@ class Ezmlm {
 	}
 
 	/**
-	 * Converts a "*" based pattern to a regexp
+	 * Converts a "*" based pattern to a preg compatible regex pattern
 	 */
-	protected function convertPattern($pattern) {
+	protected function convertPatternForPreg($pattern) {
 		if ($pattern == "*") {
 			$pattern = false; // micro-optimization
 		}
@@ -297,6 +297,15 @@ class Ezmlm {
 			$pattern = str_replace('*', '.*', $pattern);
 			$pattern = '/^' . $pattern . '$/is'; // case insensitive, multilines
 		}
+		return $pattern;
+	}
+
+	/**
+	 * Converts a "*" based pattern to a grep compatible regex pattern
+	 */
+	protected function convertPatternForGrep($pattern) {
+		$pattern = str_replace('*', '.*', $pattern);
+		$pattern = '^' . $pattern . '$';
 		return $pattern;
 	}
 
@@ -314,7 +323,7 @@ class Ezmlm {
 
 	protected function extractMessageMetadata($line1, $line2) {
 		// Line 1 : get message number, subject hash and subject
-		preg_match('/^([0-9]+): ([a-z]+) (.*)$/', $line1, $match1);
+		preg_match('/^([0-9]+): ([a-z]+)( .*)?$/', $line1, $match1);
 		// Line 2 : get date, author hash and hash
 		preg_match('/^\t([0-9]+ [a-zA-Z][a-zA-Z][a-zA-Z] [0-9][0-9][0-9][0-9] [^;]+)?;([^ ]*) (.*)$/', $line2, $match2);
 
@@ -326,11 +335,15 @@ class Ezmlm {
 			if ($timestamp != false) {
 				$date = date('Y-m-d h:i:s', $timestamp);
 			}
+			$subject = "";
+			if (isset($match1[3])) {
+				$subject = $this->utfize(trim($match1[3]));
+			}
 			// formatted return
 			$message = array(
 				"message_id" => intval($match1[1]),
 				"subject_hash" => $match1[2],
-				"subject" => $this->utfize($match1[3]),
+				"subject" => $subject,
 				"message_date" => $date, // @TODO include time zone ?
 				"author_hash" => $match2[2],
 				"author_name" => $this->utfize($match2[3])
@@ -450,27 +463,29 @@ class Ezmlm {
 	}
 
 	protected function searchMessagesInArchive($pattern, $contents=false) {
-		$pregPattern = $this->convertPattern($pattern);
+		$pregPattern = $this->convertPatternForPreg($pattern);
+		$grepPattern = $this->convertPatternForGrep($pattern);
 		if ($pregPattern === false) {
 			throw new Exception('Invalid search pattern');
 		}
 		$archiveDir = $this->listPath . '/archive';
-		$command = 'grep -l -R "' . $pattern . '" ' . $archiveDir;
+		// grep the pattern in message files only
+		$command = "find $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec grep -l -R "' . $grepPattern . '" {} +';
+		//echo "COMMAND: $command\n";
 		exec($command, $output);
-		//var_dump($output);
 		// message header or attachments moght have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
 		$messages = array();
-		echo "Out: " . count($output) . "<br/>";
+		echo "Out: " . count($output) . "\n";
 		foreach ($output as $line) {
-			//echo $line . "<br/>";
+			//echo $line . "\n";
 			$line = str_replace($archiveDir, '', $line); // strip folder path @TODO find a cleaner way to do this
-			$id = str_replace('/', '', $line);
-			//echo "ID: $id<br/>";
+			$id = intval(str_replace('/', '', $line));
+			//echo "ID: $id\n<br/>";
 			// message contents is required to check pattern matching
 			$message = $this->readMessage($id, true);
-			echo "PAT: $pregPattern<br/>";
-			echo "CONT: " . $message["message_contents"] . "<br/>";
+			//echo "PAT: $pregPattern<br/>";
+			//echo "CONT: " . $message["message_contents"] . "<br/>";
 			if (preg_match($pregPattern, $message["message_contents"])) {
 				// if contents was not asked, remove it from results @TODO manage contents=abstract
 				if ($contents == false) {
@@ -479,7 +494,7 @@ class Ezmlm {
 				$messages[] = $message;
 			}
 		}
-		echo "Msg: " . count($messages) . "<br/>";
+		//echo "Msg: " . count($messages) . "<br/>";
 		return $messages;
 	}
 
@@ -563,7 +578,7 @@ class Ezmlm {
 	 * $flMessageDetails is set, returns details for first and last message (take a lot more time)
 	 */
 	protected function readThreadsFromArchive($pattern=false, $limit=false, $flMessageDetails=false) {
-		$pattern = $this->convertPattern($pattern);
+		$pattern = $this->convertPatternForPreg($pattern);
 		// read all threads files in chronological order
 		$threadsFolder = $this->listPath . '/archive/threads';
 		$threadFiles = scandir($threadsFolder);
@@ -673,7 +688,7 @@ class Ezmlm {
 	 * Reads the $limit most recent messages from the thread of hash $hash
 	 */
 	protected function readThreadsMessages($hash, $pattern=false, $contents=false, $limit=false) {
-		$pattern = $this->convertPattern($pattern);
+		$pattern = $this->convertPatternForPreg($pattern);
 		$ids = $this->getThreadsMessagesIds($hash);
 		// newest messages first
 		$ids = array_reverse($ids);
@@ -705,7 +720,7 @@ class Ezmlm {
 	 */
 	protected function getThreadsMessagesIds($hash, $limit=false) {
 		$subjectFile = $this->getSubjectFile($hash);
-		// read 2nd line (1st message) @WARNING assumes that sed is present on the system
+		// read 2nd line (1st message)
 		$command = "grep";
 		if (is_numeric($limit) && $limit > 0) {
 			$command .= " -m $limit";
@@ -786,7 +801,7 @@ class Ezmlm {
 	}
 
 	public function getLists($pattern=false) {
-		$pattern = $this->convertPattern($pattern);
+		$pattern = $this->convertPatternForPreg($pattern);
 		$dirP = opendir('.');
 		$lists = array();
 		while ($subdir = readdir($dirP)) {
