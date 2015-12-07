@@ -476,7 +476,7 @@ class Ezmlm {
 		// message header or attachments moght have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
 		$messages = array();
-		echo "Out: " . count($output) . "\n";
+		//echo "Out: " . count($output) . "\n";
 		foreach ($output as $line) {
 			//echo $line . "\n";
 			$line = str_replace($archiveDir, '', $line); // strip folder path @TODO find a cleaner way to do this
