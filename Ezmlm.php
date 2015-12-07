@@ -230,7 +230,7 @@ class Ezmlm {
 	 * Sets an option in ezmlm config so that the "Reply-To:" header points
 	 * to the list address and not the sender's
 	 * @TODO find a proper way to know if it worked or not
-	 * © copyleft David Delon 2005 - Tela Botanica / Outils Réseaux
+	 * ï¿½ copyleft David Delon 2005 - Tela Botanica / Outils Rï¿½seaux
 	 */
 	protected function setReplyToHeader() {
 		$this->checkValidDomain();
@@ -314,20 +314,26 @@ class Ezmlm {
 
 	protected function extractMessageMetadata($line1, $line2) {
 		// Line 1 : get message number, subject hash and subject
-		preg_match('/([0-9]+): ([a-z]+) (.*)/', $line1, $match1);
+		preg_match('/^([0-9]+): ([a-z]+) (.*)$/', $line1, $match1);
 		// Line 2 : get date, author hash and hash
-		preg_match('/\t([0-9]+) ([a-zA-Z][a-zA-Z][a-zA-Z]) ([0-9][0-9][0-9][0-9]) ([^;]+);([^ ]*) (.*)/', $line2, $match2);
+		preg_match('/^\t([0-9]+ [a-zA-Z][a-zA-Z][a-zA-Z] [0-9][0-9][0-9][0-9] [^;]+)?;([^ ]*) (.*)$/', $line2, $match2);
 
 		$message = null;
 		if ($match1[1] != '') {
+			//var_dump($match2);
+			$timestamp = strtotime($match2[1]);
+			$date = null;
+			if ($timestamp != false) {
+				$date = date('Y-m-d h:i:s', $timestamp);
+			}
 			// formatted return
 			$message = array(
 				"message_id" => intval($match1[1]),
 				"subject_hash" => $match1[2],
 				"subject" => $this->utfize($match1[3]),
-				"message_date" => $match2[1] . ' ' . $match2[2] . ' ' . $match2[3] . ' ' . $match2[4],
-				"author_hash" => $match2[5],
-				"author_name" => $this->utfize($match2[6])
+				"message_date" => $date, // @TODO include time zone ?
+				"author_hash" => $match2[2],
+				"author_name" => $this->utfize($match2[3])
 			);
 		}
 		return $message;
@@ -803,6 +809,7 @@ class Ezmlm {
 	}
 
 	public function getListInfo() {
+		$out = null; $err = null;
 		$this->rt("ezmlm-get", $out, $err);
 		echo "Out: $out\nErr: $err";
 	}
