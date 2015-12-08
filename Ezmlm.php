@@ -346,7 +346,8 @@ class Ezmlm {
 				"subject" => $subject,
 				"message_date" => $date, // @TODO include time zone ?
 				"author_hash" => $match2[2],
-				"author_name" => $this->utfize($match2[3])
+				"author_name" => $this->utfize($match2[3]),
+				"author_email" => $this->readMessageAuthorEmail(intval($match1[1])) // doesn't seem to cost so much
 			);
 		}
 		return $message;
@@ -447,13 +448,12 @@ class Ezmlm {
 			$messageId = $message['message_id'];
 			$messages[$messageId] = $message;
 			// read message contents on the fly
-			// @TODO use message parser !!
 			if ($includeMessages === true) {
 				$messageContents = $this->readMessageContents($messageId);
-				$messages[$messageId]["message_contents"] = $this->utfize($messageContents);
+				$messages[$messageId]["message_contents"] = $messageContents;
 			} elseif ($includeMessages === "abstract") {
 				$messageAbstract = $this->readMessageAbstract($messageId);
-				$messages[$messageId]["message_contents"] = $this->utfize($messageAbstract);
+				$messages[$messageId]["message_contents"] = $messageAbstract;
 			}
 			$idx += 2;
 			$read++;
@@ -514,24 +514,18 @@ class Ezmlm {
 		$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
 		if ($contents === true) {
 			$messageContents = $this->readMessageContents($id);
-			$ret["message_contents"] = $this->utfize($messageContents);
+			$ret["message_contents"] = $messageContents;
 		} elseif ($contents === "abstract") {
 			$messageAbstract = $this->readMessageAbstract($id);
-			$ret["message_contents"] = $this->utfize($messageAbstract);
+			$ret["message_contents"] = $messageAbstract;
 		}
 		return $ret;
 	}
 
-	protected function readMessageAbstract($id) {
-		return $this->readMessageContents($id, true);
-	}
-
 	/**
-	 * Reads and returns the contents of the $id-th message in the current list's archive
-	 * If $abstract is true, reads only the first $this-->settings['messageAbstractSize'] chars
-	 * of the message (default 128)
+	 * Returns the path of the file containing message n°$id
 	 */
-	protected function readMessageContents($id, $abstract=false) {
+	protected function getMessageFileForId($id) {
 		// check valid id
 		if (! is_numeric($id) || $id <=0) {
 			throw new Exception("invalid message id [$id]");
@@ -542,19 +536,76 @@ class Ezmlm {
 		if (! file_exists($messageFile)) {
 			throw new Exception("message of id [$id] does not exist");
 		}
+
+		return $messageFile;
+	}
+
+	protected function readMessageAbstract($id) {
+		return $this->readMessageContents($id, true);
+	}
+
+	/**
+	 * Returns the email address of the author of message n°$id (needs message
+	 * to be parsed, beware of resources usage)
+	 */
+	protected function readMessageAuthorEmail($id) {
+		$messageFile = $this->getMessageFileForId($id);
+		$parser = new PhpMimeMailParser\Parser();
+		$parser->setPath($messageFile);
+		$from = $this->extractEmailFromHeader($parser->getHeader('from'));
+
+		return $from;
+	}
+
+	/**
+	 * Extracts the email address part (ie. "<john@doe.com>") of an email "From:",
+	 * "To:", or equivalent header, such as "John DOE <john@doe.com>"
+	 */
+	protected function extractEmailFromHeader($authorHeader) {
+		if (preg_match('/.*<(.+@.+\..+)>/', $authorHeader, $matches)) {
+			return $matches[1];
+		}
+		return false;
+	}
+
+	/**
+	 * Reads and returns the contents of the $id-th message in the current list's archive
+	 * If $abstract is true, reads only the first $this-->settings['messageAbstractSize'] chars
+	 * of the message (default 128)
+	 */
+	protected function readMessageContents($id, $abstract=false) {
+		$messageFile = $this->getMessageFileForId($id);
 		// read message
+		$parser = new PhpMimeMailParser\Parser();
+		$parser->setPath($messageFile);
+		$text = $parser->getMessageBody('text');
+		$text = $this->utfize($text);
+
+		$attachments = $parser->getAttachments();
+		$attachmentsArray = array();
+		foreach ($attachments as $attachment) {
+			$attachmentsArray[] = array(
+				"filename" => $attachment->filename,
+				"content_type" => $attachment->contentType,
+				"content-transfer-encoding" => $attachment->headers["content-transfer-encoding"]
+			);
+			//echo 'Filename : '.$attachment->getFilename().'<br />'; // logo.jpg
+			//echo 'Filesize : '.filesize($attach_dir.$attachment->getFilename()).'<br />'; // 1000
+			//echo 'Filetype : '.$attachment->getContentType().'<br />'; // image/jpeg
+		}
+
 		if ($abstract) {
 			$abstractSize = 128;
 			if (! empty($this->settings['messageAbstractSize']) && is_numeric($this->settings['messageAbstractSize']) && $this->settings['messageAbstractSize'] > 0) {
 				$abstractSize = $this->settings['messageAbstractSize'];
 			}
-			$msgF = fopen($messageFile, 'r');
-			$message = fread($msgF, $abstractSize);
-			fclose($msgF);
-		} else {
-			$message = file_get_contents($messageFile);
+			$text = substr($text, 0, $abstractSize);
 		}
-		return $message;
+
+		return array(
+			'text' => $text,
+			'attachments' => $attachmentsArray
+		);
 	}
 
 	/**
@@ -643,7 +694,7 @@ class Ezmlm {
 		return $thread;
 	}
 
-	// $pattern is applied here to optimize a bit
+	// $pattern is applied here to optimize a little
 	protected function parseThreadLine($line, $pattern=false) {
 		$thread = false;
 		preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.+)$/', $line, $matches);
@@ -666,22 +717,17 @@ class Ezmlm {
 	}
 
 	/**
-	 * Reads the first and last message metadata for thread $thread, and infers the author of the thread
+	 * Reads the first and last message metadata for thread $thread
 	 */
 	protected function readThreadsFirstAndLastMessageDetails(&$thread) {
 		$thread["last_message"] = $this->readMessage($thread["last_message_id"], false);
 		$thread["first_message_id"] = $this->getThreadsFirstMessageId($thread["subject_hash"]);
 		// small optimization
-		//echo "FMI: " . $thread["first_message_id"] . ", LMI: " . $thread["last_message_id"] . "<br/>";
 		if ($thread["first_message_id"] != $thread["last_message_id"]) {
-			//echo "read!<br/>";
 			$thread["first_message"] = $this->readMessage($thread["first_message_id"], false);
 		} else {
-			//echo "--<br/>";
 			$thread["first_message"] = $thread["last_message"];
 		}
-		// author of first message is the author of the thread @TODO remove unnecessary redundancy ?
-		$thread['author'] = $thread["first_message"]["author_name"];
 	}
 
 	/**

@@ -45,6 +45,32 @@ class EzmlmService extends BaseService {
 		);
 	}
 
+	protected function getUrlForCurrentList() {
+		return $this->config["domain_root"] . $this->config["base_uri"] . "/" . $this->listName;
+	}
+
+	/**
+	 * Returns a resource path to get a message's attachment, given the message id
+	 * and the attachment file name
+	 */
+	protected function buildAttachmentsLinks(&$messages) {
+		// manage single or multiple messages
+		if (isset($messages["results"])) {
+			$messages = $messages["results"];
+		} else { // consider a single message
+			$messages = array($messages);
+		}
+		// build links
+		foreach ($messages as &$msg) {
+			if (! empty($msg["message_contents"]) && isset($msg["message_contents"]["attachments"])) {
+				foreach ($msg["message_contents"]["attachments"] as &$attch) {
+					$url = $this->getUrlForCurrentList() . "/messages/" . $msg["message_id"] . "/attachments/" . urlencode($attch["filename"]);
+					$attch["href"] = $url;
+				}
+			}
+		}
+	}
+
 	/**
 	 * A version of explode() that preserves NULL values - allows to make the
 	 * difference between '' and NULL in multiple parameters, like "keywords"
@@ -555,6 +581,7 @@ class EzmlmService extends BaseService {
 		$contents = $this->parseBool($this->getParam('contents', true));
 		//echo "getMessage() : " . $id;
 		$res = $this->lib->getMessage($id, $contents);
+		$this->buildAttachmentsLinks($res);
 		$this->sendJson($res);
 	}
 
