@@ -50,18 +50,17 @@ class EzmlmService extends BaseService {
 	}
 
 	/**
-	 * Returns a resource path to get a message's attachment, given the message id
-	 * and the attachment file name
+	 * Adds an "href" field ton any attachment found, containing a URL to get a
+	 * message's attachment
 	 */
 	protected function buildAttachmentsLinks(&$messages) {
-		// manage single or multiple messages
-		if (isset($messages["results"])) {
-			$messages = $messages["results"];
-		} else { // consider a single message
-			$messages = array($messages);
+		if (isset($messages["message_contents"])) { // single message
+			$mess = array(&$messages);
+		} else { // multiple messages
+			$mess = &$messages;
 		}
 		// build links
-		foreach ($messages as &$msg) {
+		foreach ($mess as &$msg) {
 			if (! empty($msg["message_contents"]) && isset($msg["message_contents"]["attachments"])) {
 				foreach ($msg["message_contents"]["attachments"] as &$attch) {
 					$url = $this->getUrlForCurrentList() . "/messages/" . $msg["message_id"] . "/attachments/" . urlencode($attch["filename"]);
@@ -567,6 +566,7 @@ class EzmlmService extends BaseService {
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "getLatestMessages($limit / $contents)";
 		$res = $this->lib->getLatestMessages($contents, $limit);
+		$this->buildAttachmentsLinks($res);
 		$this->sendMultipleResults($res);
 	}
 
@@ -574,6 +574,7 @@ class EzmlmService extends BaseService {
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "Search messages: $pattern, $contents\n";
 		$messages = $this->lib->searchMessages($pattern, $contents);
+		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}
 
@@ -586,11 +587,11 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function getNextMessage($id) {
-		return $this->getMessage($id+1);
+		$this->getMessage($id+1);
 	}
 
 	protected function getPreviousMessage($id) {
-		return $this->getMessage($id-1);
+		$this->getMessage($id-1);
 	}
 
 	/**

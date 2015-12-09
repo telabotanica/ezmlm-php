@@ -486,7 +486,7 @@ class Ezmlm {
 			$message = $this->readMessage($id, true);
 			//echo "PAT: $pregPattern<br/>";
 			//echo "CONT: " . $message["message_contents"] . "<br/>";
-			if (preg_match($pregPattern, $message["message_contents"])) {
+			if (preg_match($pregPattern, $message["message_contents"]["text"])) {
 				// if contents was not asked, remove it from results @TODO manage contents=abstract
 				if ($contents == false) {
 					unset($message["message_contents"]);
@@ -575,26 +575,30 @@ class Ezmlm {
 	 */
 	protected function readMessageContents($id, $abstract=false) {
 		$messageFile = $this->getMessageFileForId($id);
+		//return file_get_contents($messageFile);
+
 		// read message
 		$parser = new PhpMimeMailParser\Parser();
 		$parser->setPath($messageFile);
 		$text = $parser->getMessageBody('text');
-		$text = $this->utfize($text);
+		if ($text) {
+			$text = $this->utfize($text);
+		}
 
 		$attachments = $parser->getAttachments();
 		$attachmentsArray = array();
 		foreach ($attachments as $attachment) {
 			$attachmentsArray[] = array(
 				"filename" => $attachment->filename,
-				"content_type" => $attachment->contentType,
-				"content-transfer-encoding" => $attachment->headers["content-transfer-encoding"]
+				"content-type" => $attachment->contentType,
+				"content-transfer-encoding" => isset($attachment->headers["content-transfer-encoding"]) ? $attachment->headers["content-transfer-encoding"] : null
 			);
 			//echo 'Filename : '.$attachment->getFilename().'<br />'; // logo.jpg
 			//echo 'Filesize : '.filesize($attach_dir.$attachment->getFilename()).'<br />'; // 1000
 			//echo 'Filetype : '.$attachment->getContentType().'<br />'; // image/jpeg
 		}
 
-		if ($abstract) {
+		if ($abstract && ($text != "")) {
 			$abstractSize = 128;
 			if (! empty($this->settings['messageAbstractSize']) && is_numeric($this->settings['messageAbstractSize']) && $this->settings['messageAbstractSize'] > 0) {
 				$abstractSize = $this->settings['messageAbstractSize'];
@@ -745,7 +749,7 @@ class Ezmlm {
 		$messages = array();
 		foreach ($ids as $id) {
 			$message = $this->readMessage($id, $contents);
-			if ($pattern == false || preg_match($pattern, $message["message_contents"])) {
+			if ($pattern == false || preg_match($pattern, $message["message_contents"]["text"])) {
 				$messages[] = $message;
 			}
 		}
