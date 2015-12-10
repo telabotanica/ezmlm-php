@@ -2,6 +2,8 @@
 A RESTful API to access ezmlm mailing lists
 
 ! Still in early stage
+Needs a lot of refactoring
+Does not cover every use case yet
 
 Requires :
 - ezmlm
