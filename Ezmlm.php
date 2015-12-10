@@ -33,6 +33,9 @@ class Ezmlm {
 	/** absolute path of current mailing list */
 	protected $listPath;
 
+	/** absolute path of cache folder */
+	protected $cachePath;
+
 	/** various settings read from config */
 	protected $settings;
 
@@ -66,6 +69,8 @@ class Ezmlm {
 		$this->domainsPath = $this->config['ezmlm']['domainsPath'];
 		// default domain
 		$this->setDomain($this->config['ezmlm']['domain']);
+		// cache path
+		$this->cachePath = $this->config['cache']['path'];
 		// various settings
 		$this->settings = $this->config['settings'];
 	}
@@ -194,6 +199,22 @@ class Ezmlm {
 		}
 		if (!is_dir($this->domainPath)) {
 			throw new Exception("domain [" . $this->domainName . "] does not exist");
+		}
+	}
+
+	/**
+	 * Throws an exception if $this->cachePath is not set, or if the directory
+	 * does not exist oris not writeable
+	 */
+	protected function checkValidCache() {
+		if (empty($this->cachePath)) {
+			throw new Exception("please set a valid cache path");
+		}
+		if (!is_dir($this->cachePath)) {
+			throw new Exception("cache folder [" . $this->cachePath . "] does not exist");
+		}
+		if (!is_writable($this->cachePath)) {
+			throw new Exception("cache folder [" . $this->cachePath . "] is not writable");
 		}
 	}
 
@@ -610,6 +631,64 @@ class Ezmlm {
 			'text' => $text,
 			'attachments' => $attachmentsArray
 		);
+	}
+
+	/**
+	 * Uses php-mime-mail-parser to extract and save attachments to message $id,
+	 * into subfolder "attachments" of the associated cache folder; if subfolder
+	 * "attachments" already exists and unlesst $force is true, does nothing.
+	 */
+	protected function saveMessageAttachments($id, $force=false) {
+		$messageCacheFolder = $this->getMessageCacheFolder($id);
+		$attachmentsFolder = $messageCacheFolder . '/attachments/';
+		$attachmentsFolderExists = is_dir($attachmentsFolder);
+
+		if ($force || ! $attachmentsFolderExists) {
+			if (! $attachmentsFolderExists) {
+				mkdir($attachmentsFolder);
+			}
+			$messageFile = $this->getMessageFileForId($id);
+			$parser = new PhpMimeMailParser\Parser();
+			$parser->setPath($messageFile); 
+			$parser->saveAttachments($attachmentsFolder);
+		}
+	}
+
+	/**
+	 * Saves the attachments of message $id in the cache if needed, then returns
+	 * the path for attachment $attachmentName; throws an exception if the
+	 * required attachment doesn't exist or could not be extracted / saved
+	 */
+	protected function getMessageAttachmentPath($messageId, $attachmentName) {
+		$this->checkValidCache();
+		$messageCacheFolder = $this->getMessageCacheFolder($messageId);
+		//$attachmentName = urldecode($attachmentName); // @TODO useful ?
+		// extract and save attachments
+		$this->saveMessageAttachments($messageId);
+		$fileName = $messageCacheFolder . '/attachments/' . $attachmentName;
+		if (!file_exists($fileName)) {
+			throw new Exception("Attachment [$attachmentName] to message [$messageId] does not exist or could not be extracted");
+		}
+		return $fileName;
+	}
+
+	/**
+	 * Returns the path of the cache folder for message $id, following
+	 * ezmlm-archive's folders convention (ex. message 12743 => folder 127/43)
+	 */
+	protected function getMessageCacheFolder($id) {
+		$f1 = "0";
+		$f2 = $id;
+		if ($id >= 100) {
+			$f1 = floor($id / 100);
+			$f2 = $id - (100 * $f1);
+		}
+		$folderForId = $f1 . '/' . str_pad($f2, 2, "0",STR_PAD_LEFT);
+		$folderPath = $this->cachePath . '/' . $this->listName . '/' . $folderForId;
+		if (! is_dir($folderPath)) {
+			mkdir($folderPath, 0777, true);
+		}
+		return $folderPath;
 	}
 
 	/**
@@ -1061,6 +1140,12 @@ class Ezmlm {
 		$this->checkValidList();
 		$msg = $this->readMessage($id, $contents);
 		return $msg;
+	}
+
+	public function getAttachmentPath($messageId, $attachmentName) {
+		$this->checkValidList();
+		$path = $this->getMessageAttachmentPath($messageId, $attachmentName);
+		return $path;
 	}
 
 	public function getAllThreads($pattern=false, $details=false) {

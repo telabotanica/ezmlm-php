@@ -163,10 +163,29 @@ class BaseService {
 	 * Reads and returns request body contents
 	 */
 	protected function readRequestBody() {
-		// @TODO beware of memory consumption, how to do
-		// extraire seulement le paramètre "file" et l'écrire dans un fichier
-		// temporaire ?
+		// @TODO beware of memory consumption
 		$contents = file_get_contents('php://input');
 		return $contents;
+	}
+
+	protected function sendFile($file, $name, $size, $mimetype='application/octet-stream') {
+		if (! file_exists($file)) {
+			$this->sendError("file does not exist");
+		}
+		header('Content-Type: ' . $mimetype);
+		header('Content-Disposition: attachment; filename="' . $name . '"');
+		header('Expires: 0');
+		header('Cache-Control: must-revalidate');
+		header('Pragma: public');
+		header('Content-Length: ' . $size);
+		// progressive sending
+		// http://www.media-division.com/the-right-way-to-handle-file-downloads-in-php/
+		set_time_limit(0);
+		$f = @fopen($file,"rb");
+		while(!feof($f)) {
+			print(fread($f, 1024*8));
+			ob_flush();
+			flush();
+		}
 	}
 }

@@ -18,5 +18,8 @@
 	"settings": {
 		"maxMessagesWithContentsReadableAtOnce": 100,
 		"messageAbstractSize": 64
+	},
+	"cache": {
+		"path": "/tmp/ezmlm-php"
 	}
 }

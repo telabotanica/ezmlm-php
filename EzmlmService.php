@@ -46,7 +46,7 @@ class EzmlmService extends BaseService {
 	}
 
 	protected function getUrlForCurrentList() {
-		return $this->config["domain_root"] . $this->config["base_uri"] . "/" . $this->listName;
+		return $this->config["domain_root"] . $this->config["base_uri"] . "/lists/" . $this->listName;
 	}
 
 	/**
@@ -386,6 +386,14 @@ class EzmlmService extends BaseService {
 								case "previous":
 									$this->getPreviousMessageByThread($hash, $messageId);
 									break;
+								case "attachments":
+									// no more resoures ?
+									if (count($this->resources) == 0) {
+										$this->usage();
+									} else {
+										$this->getAttachment($messageId, $this->resources[0]);
+									}
+									break;
 								default:
 									$this->usage();
 									return false;
@@ -408,6 +416,7 @@ class EzmlmService extends BaseService {
 			$this->sendJson($nb);
 		} else {
 			$messages = $this->lib->getAllMessagesByThread($hash, false, $contents);
+			$this->buildAttachmentsLinks($messages);
 			$this->sendMultipleResults($messages);
 		}
 	}
@@ -419,6 +428,7 @@ class EzmlmService extends BaseService {
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "Get latest messages by thread: $contents, $limit\n";
 		$messages = $this->lib->getLatestMessagesByThread($hash, $limit, $contents);
+		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}
 
@@ -426,18 +436,21 @@ class EzmlmService extends BaseService {
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "Search messages by threads: $pattern, $contents\n";
 		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents);
+		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}
 
 	protected function getNextMessageByThread($hash, $id) {
 		$contents = $this->parseBool($this->getParam('contents'));
 		$nextMessage = $this->lib->getNextMessageByThread($hash, $id, $contents);
+		$this->buildAttachmentsLinks($nextMessage);
 		$this->sendJson($nextMessage);
 	}
 
 	protected function getPreviousMessageByThread($hash, $id) {
 		$contents = $this->parseBool($this->getParam('contents'));
 		$previousMessage = $this->lib->getPreviousMessageByThread($hash, $id, $contents);
+		$this->buildAttachmentsLinks($previousMessage);
 		$this->sendJson($previousMessage);
 	}
 
@@ -533,6 +546,14 @@ class EzmlmService extends BaseService {
 								case "previous":
 									$this->getPreviousMessage($messageId);
 									break;
+								case "attachments":
+									// no more resoures ?
+									if (count($this->resources) == 0) {
+										$this->usage();
+									} else {
+										$this->getAttachment($messageId, $this->resources[0]);
+									}
+									break;
 								default:
 									$this->usage();
 									return false;
@@ -555,6 +576,7 @@ class EzmlmService extends BaseService {
 			$this->sendJson($res);
 		} else {
 			$res = $this->lib->getAllMessages($contents);
+			$this->buildAttachmentsLinks($res);
 			$this->sendMultipleResults($res);
 		}
 	}
@@ -592,6 +614,16 @@ class EzmlmService extends BaseService {
 
 	protected function getPreviousMessage($id) {
 		$this->getMessage($id-1);
+	}
+
+	protected function getAttachment($messageId, $attachmentName) {
+		$attachmentPath = $this->lib->getAttachmentPath($messageId, $attachmentName);
+		$size = filesize($attachmentPath);
+		// mimetype detection @TODO get it from Parser instead (redundancy)
+		$finfo = finfo_open(FILEINFO_MIME_TYPE);
+		$mimetype = finfo_file($finfo, $attachmentPath);
+		finfo_close($finfo);
+		$this->sendFile($attachmentPath, $attachmentName, $size, $mimetype);
 	}
 
 	/**
