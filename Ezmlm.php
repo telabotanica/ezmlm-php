@@ -75,14 +75,22 @@ class Ezmlm {
 		$this->settings = $this->config['settings'];
 	}
 
+	protected function notImplemented() {
+		throw new Exception("Method not implemented yet");
+	}
+
+	// ------------------ SYSTEM METHODS --------------------------
+
 	/**
-	 * Sets current directory to the current domain directory
+	 * Ensures that a user-given command or argument to a command does not
+	 * threaten security
+	 * @WARNING minimalistic
+	 * @TODO improve !
 	 */
-	protected function chdirToDomain() {
-		if (! is_dir($this->domainPath)) {
-			throw new Exception("domain path: cannot access directory [" . $this->domainPath . "]");
+	protected function ckeckAllowedArgument($arg) {
+		if (strpos($arg, "..") !== false || strpos($arg, "/") !== false) {
+			throw new Exception("forbidden command / argument: [$arg]");
 		}
-		chdir($this->domainPath);
 	}
 
 	/**
@@ -90,11 +98,7 @@ class Ezmlm {
 	 * Output parameters are optional to reduce memory consumption
 	 */
 	protected function runEzmlmTool($tool, $optionsString, &$stdout=false, &$stderr=false) {
-		// sanitize @TODO externalize and improve
-		if (strpos($tool, "..") !== false || strpos($tool, "/") !== false) {
-			throw new Exception("forbidden command: [$tool]");
-		}
-
+		$this->checkAllowedArgument($tool);
 		// prepare proces opening
 		$descriptorspec = array(
 			0 => array("pipe", "r"),
@@ -103,26 +107,19 @@ class Ezmlm {
 		);  
 		// cautiousness
 		$cwd = '/tmp';
-
 		$process = proc_open($this->ezmlmIdxPath . '/' . $tool . ' ' . $optionsString, $descriptorspec, $pipes, $cwd);
 
 		if (is_resource($process)) {
 			// optionally write something to stdin
 			fclose($pipes[0]);
-
 			if ($stdout !== false) {
 				$stdout = stream_get_contents($pipes[1]);
-				//echo $stdout;
 			}
 			fclose($pipes[1]);
-			//echo "\n";
-
 			if ($stderr !== false) {
 				$stderr = stream_get_contents($pipes[2]);
-				//echo $stderr;
 			}
 			fclose($pipes[2]);
-
 			// It is important that you close any pipes before calling
 			// proc_close in order to avoid a deadlock
 			$return_value = proc_close($process);
@@ -134,9 +131,10 @@ class Ezmlm {
 	}
 
 	/**
-	 * rt : Run ezmlm-idx tool; convenience method for runEzmlmTool()
-	 * Throws an exception containing stderr if the command returns something else that 0;
-	 * otherwise, returns true if $returnStdout is false (default), stdout otherwise
+	 * Run ezmlm-idx tool; convenience method for runEzmlmTool()
+	 * Throws an exception containing stderr if the command returns something
+	 * else that 0; otherwise, returns true if $returnStdout is false (default)
+	 * or returns stdout otherwise
 	 */
 	protected function rt($tool, $optionsString, $returnStdout=false) {
 		$ret = false;
@@ -155,6 +153,18 @@ class Ezmlm {
 		return true;
 	}
 
+	// ------------------ UTILITY METHODS -------------------------
+
+	/**
+	 * Sets current directory to the current domain directory
+	 */
+	protected function chdirToDomain() {
+		if (! is_dir($this->domainPath)) {
+			throw new Exception("domain path: cannot access directory [" . $this->domainPath . "]");
+		}
+		chdir($this->domainPath);
+	}
+
 	/**
 	 * Returns true if $fileName exists in directory $dir, false otherwise
 	 * @TODO replace by a simple file_exists() provided by PHP ?!
@@ -166,6 +176,13 @@ class Ezmlm {
 			$exists = ($exists || ($file == $fileName));
 		}
 		return $exists;
+	}
+
+	/*
+	 * Returns true if list $name exists in $this->domainPath domain
+	 */
+	protected function listExists($name) {
+		return is_dir($this->domainPath . '/' . $name);
 	}
 
 	/**
@@ -204,7 +221,7 @@ class Ezmlm {
 
 	/**
 	 * Throws an exception if $this->cachePath is not set, or if the directory
-	 * does not exist oris not writeable
+	 * does not exist or is not writable
 	 */
 	protected function checkValidCache() {
 		if (empty($this->cachePath)) {
@@ -216,13 +233,6 @@ class Ezmlm {
 		if (!is_writable($this->cachePath)) {
 			throw new Exception("cache folder [" . $this->cachePath . "] is not writable");
 		}
-	}
-
-	/*
-	 * Returns true if list $name exists in $this->domainPath domain
-	 */
-	protected function listExists($name) {
-		return is_dir($this->domainPath . '/' . $name);
 	}
 
 	/**
@@ -245,26 +255,6 @@ class Ezmlm {
 			$switches = implode(' ', $switchesArray);
 		}
 		return $switches;
-	}
-
-	/**
-	 * Sets an option in ezmlm config so that the "Reply-To:" header points
-	 * to the list address and not the sender's
-	 * @TODO find a proper way to know if it worked or not
-	 * � copyleft David Delon 2005 - Tela Botanica / Outils R�seaux
-	 */
-	protected function setReplyToHeader() {
-		$this->checkValidDomain();
-		$this->checkValidList();
-		// files to be modified
-		$headerRemovePath = $this->listPath . '/headerremove';
-		$headerAddPath = $this->listPath . '/headeradd';
-		// commands
-		$hrCommand = "echo -e 'reply-to' >> " . $headerRemovePath;
-		$haCommand = "echo -e 'Reply-To: <#l#>@<#h#>' >> " . $headerAddPath;
-		//echo $haCommand; exit;
-		exec($hrCommand);
-		exec($haCommand);
 	}
 
 	/**
@@ -331,6 +321,26 @@ class Ezmlm {
 	}
 
 	// ------------------ PARSING METHODS -------------------------
+
+	/**
+	 * Sets an option in ezmlm config so that the "Reply-To:" header points
+	 * to the list address and not the sender's
+	 * @TODO find a proper way to know if it worked or not
+	 * � copyleft David Delon 2005 - Tela Botanica / Outils R�seaux
+	 */
+	protected function setReplyToHeader() {
+		$this->checkValidDomain();
+		$this->checkValidList();
+		// files to be modified
+		$headerRemovePath = $this->listPath . '/headerremove';
+		$headerAddPath = $this->listPath . '/headeradd';
+		// commands
+		$hrCommand = "echo -e 'reply-to' >> " . $headerRemovePath;
+		$haCommand = "echo -e 'Reply-To: <#l#>@<#h#>' >> " . $headerAddPath;
+		//echo $haCommand; exit;
+		exec($hrCommand);
+		exec($haCommand);
+	}
 
 	protected function computeSubfolderAndId($id) {
 		// ezmlm archive format : http://www.mathematik.uni-ulm.de/help/qmail/ezmlm.5.html
@@ -454,11 +464,9 @@ class Ezmlm {
 			$limit = false;
 		}
 
-		//$indexF = fopen($this->listPath . '/archive/' . $subfolder . '/index', 'r');
 		// read file backwards
 		$index = file($this->listPath . '/archive/' . $subfolder . '/index');
 		$index = array_reverse($index);
-		// var_dump($index); exit;
 		// read 2 lines at once - @WARNING considers file contents is always even !
 		$length = count($index);
 		$idx = 0;
@@ -492,21 +500,15 @@ class Ezmlm {
 		$archiveDir = $this->listPath . '/archive';
 		// grep the pattern in message files only
 		$command = "find $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec grep -l -R "' . $grepPattern . '" {} +';
-		//echo "COMMAND: $command\n";
 		exec($command, $output);
 		// message header or attachments moght have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
 		$messages = array();
-		//echo "Out: " . count($output) . "\n";
 		foreach ($output as $line) {
-			//echo $line . "\n";
 			$line = str_replace($archiveDir, '', $line); // strip folder path @TODO find a cleaner way to do this
 			$id = intval(str_replace('/', '', $line));
-			//echo "ID: $id\n<br/>";
 			// message contents is required to check pattern matching
 			$message = $this->readMessage($id, true);
-			//echo "PAT: $pregPattern<br/>";
-			//echo "CONT: " . $message["message_contents"] . "<br/>";
 			if (preg_match($pregPattern, $message["message_contents"]["text"])) {
 				// if contents was not asked, remove it from results @TODO manage contents=abstract
 				if ($contents == false) {
@@ -515,7 +517,6 @@ class Ezmlm {
 				$messages[] = $message;
 			}
 		}
-		//echo "Msg: " . count($messages) . "<br/>";
 		return $messages;
 	}
 
@@ -530,7 +531,6 @@ class Ezmlm {
 		// sioux trick to get the 2 lines concerning the message
 		$grep = 'grep "' . $id . ': " "' . $indexPath . '" -A 1';
 		exec($grep, $lines);
-		//var_dump($lines); exit;
 
 		$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
 		if ($contents === true) {
@@ -552,7 +552,6 @@ class Ezmlm {
 			throw new Exception("invalid message id [$id]");
 		}
 		list($subfolder, $messageId) = $this->computeSubfolderAndId($id);
-		//echo "ID: $id, SF: $subfolder, MSG: $messageId\n";
 		$messageFile = $this->listPath . '/archive/' . $subfolder . '/' . $messageId;
 		if (! file_exists($messageFile)) {
 			throw new Exception("message of id [$id] does not exist");
@@ -596,8 +595,6 @@ class Ezmlm {
 	 */
 	protected function readMessageContents($id, $abstract=false) {
 		$messageFile = $this->getMessageFileForId($id);
-		//return file_get_contents($messageFile);
-
 		// read message
 		$parser = new PhpMimeMailParser\Parser();
 		$parser->setPath($messageFile);
@@ -614,9 +611,6 @@ class Ezmlm {
 				"content-type" => $attachment->contentType,
 				"content-transfer-encoding" => isset($attachment->headers["content-transfer-encoding"]) ? $attachment->headers["content-transfer-encoding"] : null
 			);
-			//echo 'Filename : '.$attachment->getFilename().'<br />'; // logo.jpg
-			//echo 'Filesize : '.filesize($attach_dir.$attachment->getFilename()).'<br />'; // 1000
-			//echo 'Filetype : '.$attachment->getContentType().'<br />'; // image/jpeg
 		}
 
 		if ($abstract && ($text != "")) {
@@ -662,7 +656,6 @@ class Ezmlm {
 	protected function getMessageAttachmentPath($messageId, $attachmentName) {
 		$this->checkValidCache();
 		$messageCacheFolder = $this->getMessageCacheFolder($messageId);
-		//$attachmentName = urldecode($attachmentName); // @TODO useful ?
 		// extract and save attachments
 		$this->saveMessageAttachments($messageId);
 		$fileName = $messageCacheFolder . '/attachments/' . $attachmentName;
@@ -862,10 +855,8 @@ class Ezmlm {
 			// regexp starts with .* because sometimes the subject (1st line) contains a \n and
 			// thus contaminates the second line (wtf?)
 			preg_match('/^(.*[^0-9])?([0-9]+):([0-9]+):([a-z]+) (.+)$/', $line, $matches);
-			//echo $matches[2] . "<br/>";
 			$ids[] = intval($matches[2]);
 		}
-		//var_dump($ids);
 		return $ids;
 	}
 
@@ -886,6 +877,7 @@ class Ezmlm {
 	 * of encoding problems, "Re: " ou "Fwd: " mentions, and so on; @WARNING 2 totally different
 	 * threads might have the same subject string, so make sure there really was an encoding or
 	 * mention problem before merging !
+	 * @TODO do it !
 	 */
 	protected function attemptToMergeThreads(&$threads) {
 		// detect if subject string is problematic
@@ -953,6 +945,7 @@ class Ezmlm {
 	}
 
 	public function getListInfo() {
+		$this->notImplemented();
 		$out = null; $err = null;
 		$this->rt("ezmlm-get", $out, $err);
 		echo "Out: $out\nErr: $err";
@@ -1017,7 +1010,6 @@ class Ezmlm {
 				$ret += $retcode;
 			}
 		}
-
 		// status
 		if ($ret > 0) {
 			throw new Exception("error while deleting list files");
@@ -1029,7 +1021,6 @@ class Ezmlm {
 		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options, true);
 		// ezmlm returns one result per line
 		$ret = array_filter(explode("\n", $ret));
@@ -1040,7 +1031,6 @@ class Ezmlm {
 		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath . '/mod';
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options, true);
 		// ezmlm returns one result per line
 		$ret = array_filter(explode("\n", $ret));
@@ -1051,7 +1041,6 @@ class Ezmlm {
 		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath . '/allow';
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options, true);
 		// ezmlm returns one result per line
 		$ret = array_filter(explode("\n", $ret));
@@ -1062,7 +1051,6 @@ class Ezmlm {
 		$this->checkValidEmail($subscriberEmail);
 		$command = "ezmlm-sub";
 		$options = $this->listPath . ' ' . $subscriberEmail;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1071,7 +1059,6 @@ class Ezmlm {
 		$this->checkValidEmail($subscriberEmail);
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . ' ' . $subscriberEmail;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1080,7 +1067,6 @@ class Ezmlm {
 		$this->checkValidEmail($moderatorEmail);
 		$command = "ezmlm-sub";
 		$options = $this->listPath . '/mod ' . $moderatorEmail;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1089,7 +1075,6 @@ class Ezmlm {
 		$this->checkValidEmail($moderatorEmail);
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . '/mod ' . $moderatorEmail;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1098,7 +1083,6 @@ class Ezmlm {
 		$this->checkValidEmail($posterEmail);
 		$command = "ezmlm-sub";
 		$options = $this->listPath . '/allow ' . $posterEmail;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1107,7 +1091,6 @@ class Ezmlm {
 		$this->checkValidEmail($posterEmail);
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . '/allow ' . $posterEmail;
-		//var_dump($command . " " . $options);
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
