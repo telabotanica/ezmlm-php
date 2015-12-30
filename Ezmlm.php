@@ -743,6 +743,12 @@ class Ezmlm {
 		if ($flMessageDetails) {
 			foreach ($threads as &$thread) {
 				$this->readThreadsFirstAndLastMessageDetails($thread);
+				$thread["subject"] = $this->cleanThreadSubject($thread["subject"]);
+			}
+		} else {
+			// clean subjects (and avoid double loop)
+			foreach ($threads as &$thread) {
+				$thread["subject"] = $this->cleanThreadSubject($thread["subject"]);
 			}
 		}
 
@@ -767,14 +773,32 @@ class Ezmlm {
 		if ($details) {
 			$this->readThreadsFirstAndLastMessageDetails($thread);
 		}
+		$thread["subject"] = $this->cleanThreadSubject($thread["subject"]);
+
 		return $thread;
+	}
+
+	/**
+	 * Tries to remove "Re: ", "Fwd: " and so on from thread subject
+	 */
+	protected function cleanThreadSubject($subject) {
+		//echo "AVT: $subject\n";
+		$patterns = array('Re:', 'Re :', 'Fwd:', 'Fwd :');
+		$subject = str_replace($patterns, '', $subject);
+		$subject = trim($subject);
+		//echo "APRS: $subject\n";
+		return $subject;
 	}
 
 	// $pattern is applied here to optimize a little
 	protected function parseThreadLine($line, $pattern=false) {
 		$thread = false;
-		preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.+)$/', $line, $matches);
-		//var_dump($matches);
+		preg_match('/^([0-9]+):([a-z]+) \[([0-9]+)\] (.*)$/', $line, $matches);
+		/*if (! isset($matches[1])) {
+			echo "LINE: $line<br/>";
+			var_dump($matches);
+			exit;
+		}*/
 		$lastMessageId = $matches[1];
 		$subjectHash = $matches[2];
 		$nbMessages = $matches[3];
@@ -801,9 +825,12 @@ class Ezmlm {
 		// small optimization
 		if ($thread["first_message_id"] != $thread["last_message_id"]) {
 			$thread["first_message"] = $this->readMessage($thread["first_message_id"], false);
+			$thread["last_message"]["subject"] = $this->cleanThreadSubject($thread["last_message"]["subject"]);
 		} else {
 			$thread["first_message"] = $thread["last_message"];
 		}
+		// replace thread subject by first message subject, to avoid "Re: ", "Fwd: " etc.
+		$thread["subject"] = $thread["first_message"]["subject"];
 	}
 
 	/**

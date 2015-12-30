@@ -310,7 +310,8 @@ class EzmlmService extends BaseService {
 			$res = $this->lib->countAllThreads();
 			$this->sendJson($res);
 		} else {
-			$threads = $this->lib->getAllThreads(false, $details);
+			// @TODO manage "details" switch
+			$threads = $this->lib->getAllThreads(false);
 			$this->sendMultipleResults($threads);
 		}
 	}
