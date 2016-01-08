@@ -403,10 +403,14 @@ class Ezmlm {
 	 * If $includeMessages is true, returns the parsed message contents along with the metadata;
 	 * if $includeMessages is "abstract", returns only the first characters of the message.
 	 */
-	protected function readMessagesFromArchive($includeMessages=false, $limit=false) {
+	protected function readMessagesFromArchive($includeMessages=false, $limit=false, $sort='desc') {
 		// check valid limit
 		if (! is_numeric($limit) || $limit <= 0) {
 			$limit = false;
+		}
+		// check valid sort order
+		if ($sort != 'asc') {
+			$sort = 'desc';
 		}
 		// idiot-proof attempt
 		if ($includeMessages === true) { // unlimited abstracts are allowed
@@ -449,7 +453,26 @@ class Ezmlm {
 		// bye
 		closedir($archiveD);
 
+		// sort
+		usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
+
 		return $messages;
+	}
+
+	/**
+	 * Comparison function for usort() returning oldest messages first : a lower
+	 * message_id always mean an older date
+	 */
+	protected function sortMessagesByIdAsc($a, $b) {
+		return $a['message_id'] - $b['message_id'];
+	}
+
+	/**
+	 * Comparison function for usort() returning oldest messages first : a lower
+	 * message_id always mean an older date
+	 */
+	protected function sortMessagesByIdDesc($a, $b) {
+		return $this->sortMessagesByIdAsc($b, $a);
 	}
 
 	/**
@@ -501,7 +524,7 @@ class Ezmlm {
 		// grep the pattern in message files only
 		$command = "find $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec grep -l -R "' . $grepPattern . '" {} +';
 		exec($command, $output);
-		// message header or attachments moght have matched $pattern - extracting
+		// message header or attachments might have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
 		$messages = array();
 		foreach ($output as $line) {
@@ -621,6 +644,8 @@ class Ezmlm {
 			$text = substr($text, 0, $abstractSize);
 		}
 
+		$text = $this->cleanMessageText($text);
+
 		return array(
 			'text' => $text,
 			'attachments' => $attachmentsArray
@@ -628,9 +653,20 @@ class Ezmlm {
 	}
 
 	/**
+	 * Attempts to remove quotations, headers, markups that could be interpreted
+	 * as HTML, and all other sh*t clients send
+	 * @TODO improve !
+	 */
+	protected function cleanMessageText($text) {
+		// basic job : remove markups
+		$text = str_replace(array('<','>'), array('&lt;','&gt;'), $text);
+		return $text;
+	}
+
+	/**
 	 * Uses php-mime-mail-parser to extract and save attachments to message $id,
 	 * into subfolder "attachments" of the associated cache folder; if subfolder
-	 * "attachments" already exists and unlesst $force is true, does nothing.
+	 * "attachments" already exists and unless $force is true, does nothing.
 	 */
 	protected function saveMessageAttachments($id, $force=false) {
 		$messageCacheFolder = $this->getMessageCacheFolder($id);
@@ -836,7 +872,11 @@ class Ezmlm {
 	/**
 	 * Reads the $limit most recent messages from the thread of hash $hash
 	 */
-	protected function readThreadsMessages($hash, $pattern=false, $contents=false, $limit=false) {
+	protected function readThreadsMessages($hash, $pattern=false, $contents=false, $limit=false, $sort='desc') {
+		// check valid sort order
+		if ($sort != 'asc') {
+			$sort = 'desc';
+		}
 		$pattern = $this->convertPatternForPreg($pattern);
 		$ids = $this->getThreadsMessagesIds($hash);
 		// newest messages first
@@ -852,6 +892,9 @@ class Ezmlm {
 				$messages[] = $message;
 			}
 		}
+		// sort
+		usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
+
 		return $messages;
 	}
 
@@ -1128,15 +1171,15 @@ class Ezmlm {
 		return $nb;
 	}
 
-	public function getAllMessages($contents=false) {
+	public function getAllMessages($contents=false, $sort='desc') {
 		$this->checkValidList();
-		$msgs = $this->readMessagesFromArchive($contents);
+		$msgs = $this->readMessagesFromArchive($contents, false, $sort);
 		return $msgs;
 	}
 
-	public function getLatestMessages($contents=false, $limit=10) {
+	public function getLatestMessages($contents=false, $limit=10, $sort='desc') {
 		$this->checkValidList();
-		$msgs = $this->readMessagesFromArchive($contents, $limit);
+		$msgs = $this->readMessagesFromArchive($contents, $limit, $sort);
 		return $msgs;
 	}
 
@@ -1182,14 +1225,14 @@ class Ezmlm {
 		return $thread;
 	}
 
-	public function getAllMessagesByThread($hash, $pattern=false, $contents=false) {
+	public function getAllMessagesByThread($hash, $pattern=false, $contents=false, $sort='desc') {
 		$this->checkValidList();
 		// if searching is required, message contents will have to be extracted to search among it
 		$callTimeContents = $contents;
 		if ($pattern !== false) {
 			$callTimeContents = true;
 		}
-		$messages = $this->readThreadsMessages($hash, $pattern, $callTimeContents);
+		$messages = $this->readThreadsMessages($hash, $pattern, $callTimeContents, false, $sort);
 		// in case of non-false $pattern but false $contents, remove messages contents before sending
 		// @TODO support contents=abstract ?
 		if ($pattern !== false && $contents == false) {
@@ -1200,9 +1243,9 @@ class Ezmlm {
 		return $messages;
 	}
 
-	public function getLatestMessagesByThread($hash, $limit=10, $contents=false) {
+	public function getLatestMessagesByThread($hash, $limit=10, $contents=false, $sort='desc') {
 		$this->checkValidList();
-		$messages = $this->readThreadsMessages($hash, false, $contents, $limit);
+		$messages = $this->readThreadsMessages($hash, false, $contents, $limit, $sort);
 		return $messages;
 	}
 

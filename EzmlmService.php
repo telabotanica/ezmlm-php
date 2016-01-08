@@ -411,12 +411,13 @@ class EzmlmService extends BaseService {
 	protected function getAllMessagesByThread($hash) {
 		$count = ($this->getParam('count') !== null);
 		$contents = $this->parseBool($this->getParam('contents'));
+		$sort = $this->getParam('sort', 'desc');
 		//echo "Get all messages by thread : $count, $contents\n";
 		if ($count) {
 			$nb = $this->lib->countMessagesFromThread($hash);
 			$this->sendJson($nb);
 		} else {
-			$messages = $this->lib->getAllMessagesByThread($hash, false, $contents);
+			$messages = $this->lib->getAllMessagesByThread($hash, false, $contents, $sort);
 			$this->buildAttachmentsLinks($messages);
 			$this->sendMultipleResults($messages);
 		}
@@ -427,16 +428,18 @@ class EzmlmService extends BaseService {
 			$limit = $this->defaultMessagesLimit;
 		}
 		$contents = $this->parseBool($this->getParam('contents'));
+		$sort = $this->getParam('sort', 'desc');
 		//echo "Get latest messages by thread: $contents, $limit\n";
-		$messages = $this->lib->getLatestMessagesByThread($hash, $limit, $contents);
+		$messages = $this->lib->getLatestMessagesByThread($hash, $limit, $contents, $sort);
 		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}
 
 	protected function searchMessagesByThread($hash, $pattern) {
 		$contents = $this->parseBool($this->getParam('contents'));
+		$sort = $this->getParam('sort', 'desc');
 		//echo "Search messages by threads: $pattern, $contents\n";
-		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents);
+		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents, $sort);
 		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}
@@ -570,13 +573,14 @@ class EzmlmService extends BaseService {
 
 	protected function getAllMessages() {
 		$count = ($this->getParam('count') !== null);
+		$sort = $this->getParam('sort', 'desc');
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "getAllMessages(" . ($count ? "true" : "false") . " / $contents)";
 		if ($count) {
 			$res = $this->lib->countAllMessages();
 			$this->sendJson($res);
 		} else {
-			$res = $this->lib->getAllMessages($contents);
+			$res = $this->lib->getAllMessages($contents, $sort);
 			$this->buildAttachmentsLinks($res);
 			$this->sendMultipleResults($res);
 		}
@@ -586,9 +590,10 @@ class EzmlmService extends BaseService {
 		if ($limit === false) {
 			$limit = $this->defaultMessagesLimit;
 		}
+		$sort = $this->getParam('sort', 'desc');
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "getLatestMessages($limit / $contents)";
-		$res = $this->lib->getLatestMessages($contents, $limit);
+		$res = $this->lib->getLatestMessages($contents, $limit, $sort);
 		$this->buildAttachmentsLinks($res);
 		$this->sendMultipleResults($res);
 	}
