@@ -412,12 +412,14 @@ class EzmlmService extends BaseService {
 		$count = ($this->getParam('count') !== null);
 		$contents = $this->parseBool($this->getParam('contents'));
 		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
 		//echo "Get all messages by thread : $count, $contents\n";
 		if ($count) {
 			$nb = $this->lib->countMessagesFromThread($hash);
 			$this->sendJson($nb);
 		} else {
-			$messages = $this->lib->getAllMessagesByThread($hash, false, $contents, $sort);
+			$messages = $this->lib->getAllMessagesByThread($hash, false, $contents, $sort, $offset, $limit);
 			$this->buildAttachmentsLinks($messages);
 			$this->sendMultipleResults($messages);
 		}
@@ -438,8 +440,10 @@ class EzmlmService extends BaseService {
 	protected function searchMessagesByThread($hash, $pattern) {
 		$contents = $this->parseBool($this->getParam('contents'));
 		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
 		//echo "Search messages by threads: $pattern, $contents\n";
-		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents, $sort);
+		$messages = $this->lib->getAllMessagesByThread($hash, $pattern, $contents, $sort, $offset, $limit);
 		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}
@@ -574,13 +578,15 @@ class EzmlmService extends BaseService {
 	protected function getAllMessages() {
 		$count = ($this->getParam('count') !== null);
 		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
 		$contents = $this->parseBool($this->getParam('contents'));
 		//echo "getAllMessages(" . ($count ? "true" : "false") . " / $contents)";
 		if ($count) {
 			$res = $this->lib->countAllMessages();
 			$this->sendJson($res);
 		} else {
-			$res = $this->lib->getAllMessages($contents, $sort);
+			$res = $this->lib->getAllMessages($contents, $sort, $offset, $limit);
 			$this->buildAttachmentsLinks($res);
 			$this->sendMultipleResults($res);
 		}
@@ -600,8 +606,11 @@ class EzmlmService extends BaseService {
 
 	protected function searchMessages($pattern) {
 		$contents = $this->parseBool($this->getParam('contents'));
+		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
 		//echo "Search messages: $pattern, $contents\n";
-		$messages = $this->lib->searchMessages($pattern, $contents);
+		$messages = $this->lib->searchMessages($pattern, $contents, $sort, $offset, $limit);
 		$this->buildAttachmentsLinks($messages);
 		$this->sendMultipleResults($messages);
 	}

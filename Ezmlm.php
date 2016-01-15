@@ -403,7 +403,7 @@ class Ezmlm {
 	 * If $includeMessages is true, returns the parsed message contents along with the metadata;
 	 * if $includeMessages is "abstract", returns only the first characters of the message.
 	 */
-	protected function readMessagesFromArchive($includeMessages=false, $limit=false, $sort='desc') {
+	protected function readMessagesFromArchive($includeMessages=false, $limit=false, $sort='desc', $offset=0) {
 		// check valid limit
 		if (! is_numeric($limit) || $limit <= 0) {
 			$limit = false;
@@ -411,6 +411,10 @@ class Ezmlm {
 		// check valid sort order
 		if ($sort != 'asc') {
 			$sort = 'desc';
+		}
+		// check valid offset
+		if (!is_numeric($offset) || $offset < 0) {
+			$offset = 0;
 		}
 		// idiot-proof attempt
 		if ($includeMessages === true) { // unlimited abstracts are allowed
@@ -432,9 +436,11 @@ class Ezmlm {
 				$subfolders[] = $d;
 			}
 		}
-		// sort and reverse order (last messages first)
+		// sort and reverse order if needed (last messages first)
 		sort($subfolders, SORT_NUMERIC);
-		$subfolders = array_reverse($subfolders);
+		if ($sort == 'desc') {
+			$subfolders = array_reverse($subfolders);
+		}
 		//var_dump($subfolders);
 
 		$messages = array();
@@ -442,11 +448,17 @@ class Ezmlm {
 		$idx = 0;
 		$read = 0;
 		$length = count($subfolders);
+		// number of index files to skip // @WARNING if sort=desc, needs to
+		// know how many messages there are in the last index file (<= 100)
+		/*$indexFilesToSkip = intval(floor(($offset + 1) / 100));
+		$idx += $indexFilesToSkip;*/
+		// go
 		while (($idx < $length) && ($limit == false || $limit > $read)) { // stop if enough messages are read
 			$sf = $subfolders[$idx];
-			$subMessages = $this->readMessagesFromArchiveSubfolder($sf, $includeMessages, ($limit - $read)); // @WARNING setting limit to 0 means unlimited
+			// @WARNING setting limit to 0 means unlimited
+			$subMessages = $this->readMessagesFromArchiveSubfolder($sf, $includeMessages, $sort, ($limit - $read), $offset);
 			$messages = array_merge($messages, $subMessages);
-			$read += count($subMessages);
+			$read += count($subMessages); // might be 0 if using an offset
 			$idx++;
 		}
 
@@ -454,7 +466,7 @@ class Ezmlm {
 		closedir($archiveD);
 
 		// sort
-		usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
+		//usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
 
 		return $messages;
 	}
@@ -480,41 +492,62 @@ class Ezmlm {
 	 * 100 messages - then returns all metadata for each message, along with the messages contents if
 	 * $includeMessages is true; limits the output to $limit messages, if $limit is a valid number > 0;
 	 * beware: setting $limit to 0 means no limit !
+	 * $offset will be used to skip messages while > 0 and updated for each message skipped
 	 */
-	protected function readMessagesFromArchiveSubfolder($subfolder, $includeMessages=false, $limit=false) {
+	protected function readMessagesFromArchiveSubfolder($subfolder, $includeMessages=false, $sort='desc', $limit=false, &$offset=0) {
 		// check valid limit
 		if (! is_numeric($limit) || $limit <= 0) {
 			$limit = false;
 		}
 
-		// read file backwards
 		$index = file($this->listPath . '/archive/' . $subfolder . '/index');
-		$index = array_reverse($index);
-		// read 2 lines at once - @WARNING considers file contents is always even !
+		// if $sort='desc', read file backwards
+		if ($sort == 'desc') {
+			$index = array_reverse($index);
+		}
+		// read 2 lines at once - @WARNING considers number of lines in file is always even !
 		$length = count($index);
 		$idx = 0;
 		$read = 0;
 		$messages = array();
 		while ($idx < $length && ($limit == false || $limit > $read)) {
-			$message = $this->extractMessageMetadata($index[$idx+1], $index[$idx]);
-			$messageId = $message['message_id'];
-			$messages[$messageId] = $message;
-			// read message contents on the fly
-			if ($includeMessages === true) {
-				$messageContents = $this->readMessageContents($messageId);
-				$messages[$messageId]["message_contents"] = $messageContents;
-			} elseif ($includeMessages === "abstract") {
-				$messageAbstract = $this->readMessageAbstract($messageId);
-				$messages[$messageId]["message_contents"] = $messageAbstract;
+			if ($offset == 0) {
+				$lineA = $index[$idx];
+				$lineB = $index[$idx+1];
+				if ($sort == 'desc') { // file is read backwards
+					$lineA = $index[$idx+1];
+					$lineB = $index[$idx];
+				}
+				$message = $this->extractMessageMetadata($lineA, $lineB);
+				$messageId = $message['message_id'];
+				$messages[$messageId] = $message;
+				// read message contents on the fly
+				if ($includeMessages === true) {
+					$messageContents = $this->readMessageContents($messageId);
+					$messages[$messageId]["message_contents"] = $messageContents;
+				} elseif ($includeMessages === "abstract") {
+					$messageAbstract = $this->readMessageAbstract($messageId);
+					$messages[$messageId]["message_contents"] = $messageAbstract;
+				}
+				$read++;
+			} else {
+				$offset--;
 			}
 			$idx += 2;
-			$read++;
 		}
 
 		return $messages;
 	}
 
-	protected function searchMessagesInArchive($pattern, $contents=false) {
+	protected function searchMessagesInArchive($pattern, $contents=false, $sort='desc', $offset=0, $limit=false) {
+		// ensure valid parameters
+		if (!is_numeric($offset) || $offset < 0) {
+			$offset = 0;
+		}
+		if (!is_numeric($limit) || $limit <= 0) {
+			$limit = null;
+		}
+		// find
 		$pregPattern = $this->convertPatternForPreg($pattern);
 		$grepPattern = $this->convertPatternForGrep($pattern);
 		if ($pregPattern === false) {
@@ -540,6 +573,11 @@ class Ezmlm {
 				$messages[] = $message;
 			}
 		}
+		// sort
+		usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
+		// paginate
+		$messages = array_slice($messages, $offset, $limit);
+
 		return $messages;
 	}
 
@@ -870,19 +908,29 @@ class Ezmlm {
 	}
 
 	/**
-	 * Reads the $limit most recent messages from the thread of hash $hash
+	 * Reads the messages from the thread of hash $hash
 	 */
-	protected function readThreadsMessages($hash, $pattern=false, $contents=false, $limit=false, $sort='desc') {
+	protected function readThreadsMessages($hash, $pattern=false, $contents=false, $limit=false, $sort='desc', $offset=0) {
+		//echo "PAT: [$pattern], LIM: [$limit], SOR: [$sort], OFF: [$offset]";
 		// check valid sort order
 		if ($sort != 'asc') {
 			$sort = 'desc';
 		}
 		$pattern = $this->convertPatternForPreg($pattern);
 		$ids = $this->getThreadsMessagesIds($hash);
-		// newest messages first
-		$ids = array_reverse($ids);
-		if (is_numeric($limit) && $limit > 0) {
-			$ids = array_slice($ids, 0, $limit);
+		// sort
+		if ($sort == 'desc') {
+			$ids = array_reverse($ids);
+		}
+		// offset & limit
+		if (!is_numeric($limit) || $limit <= 0) {
+			$limit = null;
+		}
+		if (!is_numeric($offset) || $offset < 0) {
+			$offset = 0;
+		}
+		if ($offset > 0 || $limit != null) {
+			$ids = array_slice($ids, $offset, $limit);
 		}
 		// read messages
 		$messages = array();
@@ -892,8 +940,6 @@ class Ezmlm {
 				$messages[] = $message;
 			}
 		}
-		// sort
-		usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
 
 		return $messages;
 	}
@@ -1171,9 +1217,9 @@ class Ezmlm {
 		return $nb;
 	}
 
-	public function getAllMessages($contents=false, $sort='desc') {
+	public function getAllMessages($contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
-		$msgs = $this->readMessagesFromArchive($contents, false, $sort);
+		$msgs = $this->readMessagesFromArchive($contents, $limit, $sort, $offset);
 		return $msgs;
 	}
 
@@ -1183,9 +1229,9 @@ class Ezmlm {
 		return $msgs;
 	}
 
-	public function searchMessages($pattern, $contents=false) {
+	public function searchMessages($pattern, $contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
-		$msgs = $this->searchMessagesInArchive($pattern, $contents);
+		$msgs = $this->searchMessagesInArchive($pattern, $contents, $sort, $offset, $limit);
 		return $msgs;
 	}
 
@@ -1225,14 +1271,14 @@ class Ezmlm {
 		return $thread;
 	}
 
-	public function getAllMessagesByThread($hash, $pattern=false, $contents=false, $sort='desc') {
+	public function getAllMessagesByThread($hash, $pattern=false, $contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
 		// if searching is required, message contents will have to be extracted to search among it
 		$callTimeContents = $contents;
 		if ($pattern !== false) {
 			$callTimeContents = true;
 		}
-		$messages = $this->readThreadsMessages($hash, $pattern, $callTimeContents, false, $sort);
+		$messages = $this->readThreadsMessages($hash, $pattern, $callTimeContents, $limit, $sort, $offset);
 		// in case of non-false $pattern but false $contents, remove messages contents before sending
 		// @TODO support contents=abstract ?
 		if ($pattern !== false && $contents == false) {
