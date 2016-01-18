@@ -303,27 +303,31 @@ class EzmlmService extends BaseService {
 		}
 	}
 
+	/**
+	 * Returns all threads from the current list
+	 */
 	protected function getAllThreads() {
-		$count = ($this->getParam('count') !== null);
-		//echo "getAllThreads()";
-		if ($count) {
-			$res = $this->lib->countAllThreads();
-			$this->sendJson($res);
-		} else {
-			// @TODO manage "details" switch
-			$threads = $this->lib->getAllThreads(false);
-			$this->sendMultipleResults($threads);
-		}
+		return $this->searchThreads(false);
 	}
 
 	/**
 	 * Searches among available lists
 	 */
 	protected function searchThreads($pattern) {
-		$details = ($this->getParam('details') !== null);
-		//echo "Search threads: $pattern, $details\n";
-		$threads = $this->lib->getAllThreads($pattern, $details);
-		$this->sendMultipleResults($threads);
+		$count = ($this->getParam('count') !== null);
+		$details = $this->parseBool($this->getParam('details'));
+		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
+		//echo "getAllThreads()";
+		if ($count) {
+			$res = $this->lib->countAllThreads();
+			$this->sendJson($res);
+		} else {
+			// @TODO manage "details" switch
+			$threads = $this->lib->getAllThreads($pattern, $limit, $details, $sort, $offset);
+			$this->sendMultipleResults($threads);
+		}
 	}
 
 	protected function getLatestThreads($limit=false) {

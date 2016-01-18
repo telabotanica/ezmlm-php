@@ -298,6 +298,15 @@ class Ezmlm {
 	}
 
 	/**
+	 * Comparison function for usort() returning threads having the lowest
+	 * "last_message_id" first
+	 * @TODO use first_message_id instead ?
+	 */
+	protected function sortLeastRecentThreads($a, $b) {
+		return $this->sortMostRecentThreads($b, $a);
+	}
+
+	/**
 	 * Converts a "*" based pattern to a preg compatible regex pattern
 	 */
 	protected function convertPatternForPreg($pattern) {
@@ -778,7 +787,7 @@ class Ezmlm {
 	 * only returns the $limit most recent (regarding activity ie. last message id) threads. If
 	 * $flMessageDetails is set, returns details for first and last message (take a lot more time)
 	 */
-	protected function readThreadsFromArchive($pattern=false, $limit=false, $flMessageDetails=false) {
+	protected function readThreadsFromArchive($pattern=false, $limit=false, $flMessageDetails=false, $sort='desc', $offset=0) {
 		$pattern = $this->convertPatternForPreg($pattern);
 		// read all threads files in chronological order
 		$threadsFolder = $this->listPath . '/archive/threads';
@@ -807,9 +816,20 @@ class Ezmlm {
 		// sort by last message id descending (newer messages have greater ids) and limit;
 		// usort has the advantage of removing natural keys here, thus sending a list whose
 		// order will be preserved
-		usort($threads, array($this, 'sortMostRecentThreads'));
-		if ($limit !== false) {
-			$threads = array_slice($threads, 0, $limit);
+		if ($sort == 'asc') {
+			usort($threads, array($this, 'sortLeastRecentThreads'));
+		} else {
+			usort($threads, array($this, 'sortMostRecentThreads'));
+		}
+		// offset & limit
+		if (!is_numeric($limit) || $limit <= 0) {
+			$limit = null;
+		}
+		if (!is_numeric($offset) || $offset < 0) {
+			$offset = 0;
+		}
+		if ($offset > 0 || $limit != null) {
+			$threads = array_slice($threads, $offset, $limit);
 		}
 
 		// get subject informations from subjects/ folder (author, first message, last message etc.)
@@ -1255,9 +1275,9 @@ class Ezmlm {
 		return $path;
 	}
 
-	public function getAllThreads($pattern=false, $details=false) {
+	public function getAllThreads($pattern=false, $limit=false, $details=false, $sort='desc', $offset=0) {
 		$this->checkValidList();
-		$threads = $this->readThreadsFromArchive($pattern, false, $details);
+		$threads = $this->readThreadsFromArchive($pattern, $limit, $details, $sort, $offset);
 		return $threads;
 	}
 
