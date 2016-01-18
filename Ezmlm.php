@@ -1060,11 +1060,19 @@ class Ezmlm {
 		return $lists;
 	}
 
+	/**
+	 * Returns basic information about a list
+	 */
 	public function getListInfo() {
-		$this->notImplemented();
-		$out = null; $err = null;
-		$this->rt("ezmlm-get", $out, $err);
-		echo "Out: $out\nErr: $err";
+		$info = array();
+		$info['list_name'] = $this->listName;
+		$info['nb_threads'] = $this->countAllThreads();
+		$info['nb_messages'] = $this->countAllMessages();
+		$firstMessage = $this->readMessagesFromArchive(false, 1, 'asc');
+		$lastMessage = $this->readMessagesFromArchive(false, 1, 'desc');
+		$info['first_message'] = $firstMessage[0];
+		$info['last_message'] = $lastMessage[0];
+		return $info;
 	}
 
 	public function addList($name, $options=null) {

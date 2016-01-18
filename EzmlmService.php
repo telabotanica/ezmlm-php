@@ -212,8 +212,8 @@ class EzmlmService extends BaseService {
 	 */
 	protected function getListInfo() {
 		//echo "info for list [" . $this->listName . "]";
-		$options = $this->lib->getListInfo();
-		var_dump($options);
+		$info = $this->lib->getListInfo();
+		$this->sendJson($info);
 	}
 
 	protected function getListOptions() {
