@@ -1086,6 +1086,7 @@ class Ezmlm {
 	public function getListInfo() {
 		$info = array();
 		$info['list_name'] = $this->listName;
+		$info['list_address'] = $this->listName . '@' . $this->domainName;
 		$info['nb_threads'] = $this->countAllThreads();
 		$info['nb_messages'] = $this->countAllMessages();
 		$firstMessage = $this->readMessagesFromArchive(false, 1, 'asc');
