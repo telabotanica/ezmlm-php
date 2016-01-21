@@ -578,6 +578,8 @@ class Ezmlm {
 				// if contents was not asked, remove it from results @TODO manage contents=abstract
 				if ($contents == false) {
 					unset($message["message_contents"]);
+				} elseif ($contents == 'abstract') {
+					$message["message_contents"]["text"] = $this->abstractize($message["message_contents"]["text"]);
 				}
 				$messages[] = $message;
 			}
@@ -683,12 +685,8 @@ class Ezmlm {
 			);
 		}
 
-		if ($abstract && ($text != "")) {
-			$abstractSize = 128;
-			if (! empty($this->settings['messageAbstractSize']) && is_numeric($this->settings['messageAbstractSize']) && $this->settings['messageAbstractSize'] > 0) {
-				$abstractSize = $this->settings['messageAbstractSize'];
-			}
-			$text = substr($text, 0, $abstractSize);
+		if ($abstract) {
+			$text = $this->abstractize($text);
 		}
 
 		$text = $this->cleanMessageText($text);
@@ -697,6 +695,21 @@ class Ezmlm {
 			'text' => $text,
 			'attachments' => $attachmentsArray
 		);
+	}
+
+	/**
+	 * Given a text, returns an abstract limited to 'config->messageAbstractSize'
+	 * characters, or 128 if 'config->messageAbstractSize' is not set
+	 */
+	protected function abstractize($text) { // abstract is a reserved keyword
+		if ($text != "") {
+			$abstractSize = 128;
+			if (! empty($this->settings['messageAbstractSize']) && is_numeric($this->settings['messageAbstractSize']) && $this->settings['messageAbstractSize'] > 0) {
+				$abstractSize = $this->settings['messageAbstractSize'];
+			}
+			$text = substr($text, 0, $abstractSize);
+		}
+		return $text;
 	}
 
 	/**
@@ -846,7 +859,7 @@ class Ezmlm {
 			}
 		}
 
-		// include all messages ? with contents ? (@TODO paginate)
+		// include all messages ? with contents ?
 		return $threads;
 	}
 
@@ -1309,10 +1322,13 @@ class Ezmlm {
 		}
 		$messages = $this->readThreadsMessages($hash, $pattern, $callTimeContents, $limit, $sort, $offset);
 		// in case of non-false $pattern but false $contents, remove messages contents before sending
-		// @TODO support contents=abstract ?
-		if ($pattern !== false && $contents == false) {
+		if ($pattern !== false && $contents !== true) {
 			foreach ($messages as &$mess) {
-				unset($mess["message_contents"]);
+				if ($contents == 'abstract') {
+					$mess["message_contents"]["text"] = $this->abstractize($mess["message_contents"]["text"]);
+				} else { // $contents == false
+					unset($mess["message_contents"]);
+				}
 			}
 		}
 		return $messages;
