@@ -37,12 +37,20 @@ class EzmlmService extends BaseService {
 	 * Sends multiple results in a JSON object
 	 */
 	protected function sendMultipleResults($results) {
-		$this->sendJson(
-			array(
+		// 2-in-1 dirty mode @TODO do it better
+		if (array_key_exists("data", $results) && array_key_exists("total", $results)) {
+			$return = array(
+				"count" => count($results['data']),
+				"total" => $results['total'],
+				"results" => $results['data']
+			);
+		} else {
+			$return = array(
 				"count" => count($results),
 				"results" => $results
-			)
-		);
+			);
+		}
+		$this->sendJson($return);
 	}
 
 	protected function getUrlForCurrentList() {

@@ -474,9 +474,6 @@ class Ezmlm {
 		// bye
 		closedir($archiveD);
 
-		// sort
-		//usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
-
 		return $messages;
 	}
 
@@ -568,6 +565,7 @@ class Ezmlm {
 		exec($command, $output);
 		// message header or attachments might have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
+		$totalResults = count($output);
 		$messages = array();
 		foreach ($output as $line) {
 			$line = str_replace($archiveDir, '', $line); // strip folder path @TODO find a cleaner way to do this
@@ -589,7 +587,10 @@ class Ezmlm {
 		// paginate
 		$messages = array_slice($messages, $offset, $limit);
 
-		return $messages;
+		return array(
+			"total" => $totalResults,
+			"data" => $messages
+		);
 	}
 
 	/**
@@ -820,8 +821,6 @@ class Ezmlm {
 				}
 			}
 		}
-		//var_dump($threads);
-		//exit;
 
 		// attempt to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
 		$this->attemptToMergeThreads($threads);
@@ -834,6 +833,7 @@ class Ezmlm {
 		} else {
 			usort($threads, array($this, 'sortMostRecentThreads'));
 		}
+		$totalResults = count($threads);
 		// offset & limit
 		if (!is_numeric($limit) || $limit <= 0) {
 			$limit = null;
@@ -860,7 +860,10 @@ class Ezmlm {
 		}
 
 		// include all messages ? with contents ?
-		return $threads;
+		return array(
+			"total" => $totalResults,
+			"data" => $threads
+		);
 	}
 
 	/**
@@ -951,6 +954,7 @@ class Ezmlm {
 		}
 		$pattern = $this->convertPatternForPreg($pattern);
 		$ids = $this->getThreadsMessagesIds($hash);
+		$messages = array();
 		// sort
 		if ($sort == 'desc') {
 			$ids = array_reverse($ids);
@@ -962,19 +966,36 @@ class Ezmlm {
 		if (!is_numeric($offset) || $offset < 0) {
 			$offset = 0;
 		}
-		if ($offset > 0 || $limit != null) {
-			$ids = array_slice($ids, $offset, $limit);
-		}
-		// read messages
-		$messages = array();
-		foreach ($ids as $id) {
-			$message = $this->readMessage($id, $contents);
-			if ($pattern == false || preg_match($pattern, $message["message_contents"]["text"])) {
-				$messages[] = $message;
+		// read or search (optimization)
+		if ($pattern == false) {
+			$totalResults = count($ids);
+			if ($offset > 0 || $limit != null) {
+				$ids = array_slice($ids, $offset, $limit);
+			}
+			// read messages
+			foreach ($ids as $id) {
+				$messages[] = $this->readMessage($id, $contents);
+			}
+		} else {
+			// search messages
+			foreach ($ids as $id) {
+				$message = $this->readMessage($id, $contents);
+				if ($pattern == false || preg_match($pattern, $message["message_contents"]["text"])) {
+					$messages[] = $message;
+				}
+			}
+			$totalResults = count($messages);
+			// offset & limit
+			if ($offset > 0 || $limit != null) {
+				$messages = array_slice($messages, $offset, $limit);
 			}
 		}
 
-		return $messages;
+		//return $messages;
+		return array(
+			"total" => $totalResults,
+			"data" => $messages
+		);
 	}
 
 	/**
@@ -1262,7 +1283,11 @@ class Ezmlm {
 	public function getAllMessages($contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
 		$msgs = $this->readMessagesFromArchive($contents, $limit, $sort, $offset);
-		return $msgs;
+		$nbMsgs = $this->countAllMessages(); // harmonizing return format @WARNING sub-optimal
+		return array(
+			"total" => $nbMsgs,
+			"data" => $msgs
+		);
 	}
 
 	public function getLatestMessages($contents=false, $limit=10, $sort='desc') {
