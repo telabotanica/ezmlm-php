@@ -329,6 +329,21 @@ class Ezmlm {
 		return $pattern;
 	}
 
+	/**
+	 * Returns a message stub to represent a message not found in the archive
+	 */
+	protected function messageNotFound() {
+		return array(
+			"message_id" => false,
+			"subject_hash" => false,
+			"subject" => false,
+			"message_date" => false,
+			"author_hash" => false,
+			"author_name" => false,
+			"author_email" => false
+		);
+	}
+
 	// ------------------ PARSING METHODS -------------------------
 
 	/**
@@ -605,13 +620,17 @@ class Ezmlm {
 		$grep = 'grep "' . $id . ': " "' . $indexPath . '" -A 1';
 		exec($grep, $lines);
 
-		$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
-		if ($contents === true) {
-			$messageContents = $this->readMessageContents($id);
-			$ret["message_contents"] = $messageContents;
-		} elseif ($contents === "abstract") {
-			$messageAbstract = $this->readMessageAbstract($id);
-			$ret["message_contents"] = $messageAbstract;
+		$ret = $this->messageNotFound();
+		// in case messge was not found in the archive (might happen)
+		if (count($lines) == 2) {
+			$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
+			if ($contents === true) {
+				$messageContents = $this->readMessageContents($id);
+				$ret["message_contents"] = $messageContents;
+			} elseif ($contents === "abstract") {
+				$messageAbstract = $this->readMessageAbstract($id);
+				$ret["message_contents"] = $messageAbstract;
+			}
 		}
 		return $ret;
 	}
