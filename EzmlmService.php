@@ -64,6 +64,9 @@ class EzmlmService extends BaseService {
 	protected function buildAttachmentsLinks(&$messages) {
 		if (isset($messages["message_contents"])) { // single message
 			$mess = array(&$messages);
+		} elseif(isset($messages["data"])) {
+			// 2-in-1 dirty mode @TODO do it better
+			$mess = &$messages["data"];
 		} else { // multiple messages
 			$mess = &$messages;
 		}
