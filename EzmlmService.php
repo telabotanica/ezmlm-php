@@ -154,7 +154,6 @@ class EzmlmService extends BaseService {
 							$this->searchLists($this->resources[0]);
 						}
 					} else {
-						// storing list name
 						$this->listName = $nextResource;
 						// defining list name once for all
 						$this->lib->setListName($this->listName);
@@ -184,6 +183,9 @@ class EzmlmService extends BaseService {
 									break;
 								case 'messages':
 									$this->getByMessages();
+									break;
+								case 'calendar':
+									$this->getListCalendar();
 									break;
 								default:
 									$this->usage();
@@ -225,6 +227,16 @@ class EzmlmService extends BaseService {
 		//echo "info for list [" . $this->listName . "]";
 		$info = $this->lib->getListInfo();
 		$this->sendJson($info);
+	}
+
+	/**
+	 * Returns the "calendar" for a list : a summary of the number of messages
+	 * per month, per year
+	 */
+	protected function getListCalendar() {
+		//echo "calendar for list [" . $this->listName . "]";
+		$calendar = $this->lib->getListCalendar();
+		$this->sendJson($calendar);
 	}
 
 	protected function getListOptions() {

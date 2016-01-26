@@ -1021,8 +1021,12 @@ class Ezmlm {
 	 * Returns the id of the first message in the thread of hash $hash
 	 */
 	protected function getThreadsFirstMessageId($hash) {
+		$ret = 0; // error flag (no message has the ID 0 in the archive)
 		$ids = $this->getThreadsMessagesIds($hash, 1);
-		return $ids[0];
+		if (isset($ids[0])) {
+			$ret = $ids[0];
+		}
+		return $ret;
 	}
 
 	/**
@@ -1147,6 +1151,34 @@ class Ezmlm {
 		$info['first_message'] = $firstMessage[0];
 		$info['last_message'] = $lastMessage[0];
 		return $info;
+	}
+
+	/**
+	 * Returns the "calendar" for a list : a summary of the number of messages
+	 * per month per year (glad the threads are sorted by month in the archive !)
+	 */
+	public function getListCalendar() {
+		$threadsFolder = $this->listPath . '/archive/threads';
+		$threadFiles = scandir($threadsFolder);
+		array_shift($threadFiles); // remove "."
+		array_shift($threadFiles); // remove ".."
+		//var_dump($threadFiles);
+		$months = array();
+		foreach ($threadFiles as $tf) {
+			// grep the number of messages per thread, join them as an addition, compute it :)
+			$command = 'grep -oP " \[\K[0-9]+(?=\] )" ' . $threadsFolder . '/' . $tf . ' | paste -s -d+ | bc';
+			//echo "CMD: $command\n";
+			$output = array(); // clear array or exec will push its results
+			exec($command, $output);
+			// indices
+			$year = substr($tf, 0, 4);
+			$month = substr($tf, 4, 2);
+			if (! isset($months[$year])) {
+				$months[$year] = array();
+			}
+			$months[$year][$month] = intval($output[0]);
+		}
+		return $months;
 	}
 
 	public function addList($name, $options=null) {
