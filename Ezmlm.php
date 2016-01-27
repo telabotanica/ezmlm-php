@@ -1158,25 +1158,42 @@ class Ezmlm {
 	 * per month per year (glad the threads are sorted by month in the archive !)
 	 */
 	public function getListCalendar() {
-		$threadsFolder = $this->listPath . '/archive/threads';
-		$threadFiles = scandir($threadsFolder);
-		array_shift($threadFiles); // remove "."
-		array_shift($threadFiles); // remove ".."
-		//var_dump($threadFiles);
+		$archiveFolder = $this->listPath . '/archive';
+		// grep messages dates amon all archive indexes - cannot be done with thread
+		// files cause although they are sorted by month, the number of messages
+		// they mention for each thread is culumated through all months of the
+		// list existence
+		$command = 'grep -oPh "[0-9]{1,2} \K[a-zA-Z]{3} [0-9]{4} " ' . $archiveFolder . '/*/index';
+		exec($command, $output);
+		//var_dump($output);
+
 		$months = array();
-		foreach ($threadFiles as $tf) {
-			// grep the number of messages per thread, join them as an addition, compute it :)
-			$command = 'grep -oP " \[\K[0-9]+(?=\] )" ' . $threadsFolder . '/' . $tf . ' | paste -s -d+ | bc';
-			//echo "CMD: $command\n";
-			$output = array(); // clear array or exec will push its results
-			exec($command, $output);
+		$monthsNumbers = array(
+			"Jan" => "01",
+			"Feb" => "02",
+			"Mar" => "03",
+			"Apr" => "04",
+			"May" => "05",
+			"Jun" => "06",
+			"Jul" => "07",
+			"Aug" => "08",
+			"Sep" => "09",
+			"Oct" => "10",
+			"Nov" => "11",
+			"Dec" => "12"
+		);
+		foreach ($output as $line) {
 			// indices
-			$year = substr($tf, 0, 4);
-			$month = substr($tf, 4, 2);
+			$month = $monthsNumbers[substr($line, 0, 3)];
+			$year = substr($line, 4, 4);
 			if (! isset($months[$year])) {
 				$months[$year] = array();
 			}
-			$months[$year][$month] = intval($output[0]);
+			if (isset($months[$year][$month])) {
+				$months[$year][$month]++;
+			} else {
+				$months[$year][$month] = 1;
+			}
 		}
 		return $months;
 	}
