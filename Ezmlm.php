@@ -39,6 +39,22 @@ class Ezmlm {
 	/** various settings read from config */
 	protected $settings;
 
+	/** abbreviations used by ezmlm-archive */
+	protected $monthsNumbers = array(
+		"Jan" => "01",
+		"Feb" => "02",
+		"Mar" => "03",
+		"Apr" => "04",
+		"May" => "05",
+		"Jun" => "06",
+		"Jul" => "07",
+		"Aug" => "08",
+		"Sep" => "09",
+		"Oct" => "10",
+		"Nov" => "11",
+		"Dec" => "12"
+	);
+
 	public function __construct() {
 		// config
 		if (file_exists(self::$CONFIG_PATH)) {
@@ -330,18 +346,23 @@ class Ezmlm {
 	}
 
 	/**
-	 * Returns a message stub to represent a message not found in the archive
+	 * If $silent is true, returns a message stub to represent a message not
+	 * found in the archive; if $silent is false, throws an Exception
 	 */
-	protected function messageNotFound() {
-		return array(
-			"message_id" => false,
-			"subject_hash" => false,
-			"subject" => false,
-			"message_date" => false,
-			"author_hash" => false,
-			"author_name" => false,
-			"author_email" => false
-		);
+	protected function messageNotFound($silent=false) {
+		if ($silent) {
+			return array(
+				"message_id" => false,
+				"subject_hash" => false,
+				"subject" => false,
+				"message_date" => false,
+				"author_hash" => false,
+				"author_name" => false,
+				"author_email" => false
+			);
+		} else {
+			throw new Exception("message not found");
+		}
 	}
 
 	// ------------------ PARSING METHODS -------------------------
@@ -493,6 +514,69 @@ class Ezmlm {
 	}
 
 	/**
+	 * Returns all messages whose date matches the given $datePortion, using
+	 * "YYYY[-MM[-DD]]" format (ie. "2015", "2015-04" or "2015-04-23")
+	 */
+	protected function readMessagesByDate($datePortion, $contents=false, $limit=false, $sort='desc', $offset=0) {
+		// check valid limit
+		if (! is_numeric($limit) || $limit <= 0) {
+			$limit = false;
+		}
+		// check valid sort order
+		if ($sort != 'asc') {
+			$sort = 'desc';
+		}
+		// check valid offset
+		if (!is_numeric($offset) || $offset < 0) {
+			$offset = 0;
+		}
+		// idiot-proof attempt
+		if ($contents === true) { // unlimited abstracts are allowed
+			if (! empty($this->settings['maxMessagesWithContentsReadableAtOnce']) && ($this->settings['maxMessagesWithContentsReadableAtOnce']) < $limit) {
+				throw new Exception("cannot read more than " . $this->settings['maxMessagesWithContentsReadableAtOnce'] . " messages at once, if messages contents are included");
+			}
+		}
+		// date to search for
+		$year = substr($datePortion, 0, 4);
+		$month = substr($datePortion, 5, 2);
+		$day = substr($datePortion, 8, 2);
+		if (! is_numeric($year)) {
+			throw new Exception("invalid date [$year]");
+		}
+		// file(s) to read
+		$pattern = $year;
+		$monthsNames = array_flip($this->monthsNumbers);
+		if ($month != false) {
+			$pattern = $monthsNames[$month] . ' ' . $pattern;
+		}
+		if ($day != false) {
+			$pattern = '\t' . $day . ' ' . $pattern;
+		}
+		//var_dump($pattern); exit;
+		$archiveDir = $this->listPath . '/archive';
+		$command = 'grep --no-group-separator -hP -B1 "' . $pattern . '" ' . $archiveDir . '/*/index';
+		exec($command, $output);
+		// sort (BASH "*" expansion is alphabetical)
+		if ($sort == 'desc') {
+			$output = array_reverse($output);
+		}
+		$count = floor(count($output) / 2);
+		//echo "<pre>"; var_dump($output); echo "</pre>"; exit;
+
+		$messages = $this->readMessagesPairsOfLines($output, $contents, $sort, $limit, $offset) ;
+		$msgs = array();
+		foreach ($messages as &$msg) {
+			$msgs[] = $msg;
+		}
+		//echo "<pre>"; var_dump($msgs); echo "</pre>"; exit;
+
+		return array(
+			"total" => $count,
+			"data" => $msgs
+		);
+	}
+
+	/**
 	 * Comparison function for usort() returning oldest messages first : a lower
 	 * message_id always mean an older date
 	 */
@@ -526,18 +610,27 @@ class Ezmlm {
 		if ($sort == 'desc') {
 			$index = array_reverse($index);
 		}
+		$messages = $this->readMessagesPairsOfLines($index, $includeMessages, $sort, $limit, $offset);
+
+		return $messages;
+	}
+
+	/**
+	 * Reads couples of lines from a message index file, to extract messages
+	 */
+	protected function readMessagesPairsOfLines($lines, $includeMessages=false, $sort='desc', $limit=false, &$offset=0) {
 		// read 2 lines at once - @WARNING considers number of lines in file is always even !
-		$length = count($index);
+		$length = count($lines);
 		$idx = 0;
 		$read = 0;
 		$messages = array();
 		while ($idx < $length && ($limit == false || $limit > $read)) {
 			if ($offset == 0) {
-				$lineA = $index[$idx];
-				$lineB = $index[$idx+1];
+				$lineA = $lines[$idx];
+				$lineB = $lines[$idx+1];
 				if ($sort == 'desc') { // file is read backwards
-					$lineA = $index[$idx+1];
-					$lineB = $index[$idx];
+					$lineA = $lines[$idx+1];
+					$lineB = $lines[$idx];
 				}
 				$message = $this->extractMessageMetadata($lineA, $lineB);
 				$messageId = $message['message_id'];
@@ -556,7 +649,6 @@ class Ezmlm {
 			}
 			$idx += 2;
 		}
-
 		return $messages;
 	}
 
@@ -587,7 +679,11 @@ class Ezmlm {
 			$id = intval(str_replace('/', '', $line));
 			// message contents is required to check pattern matching
 			$message = $this->readMessage($id, true);
-			if (preg_match($pregPattern, $message["message_contents"]["text"])) {
+			if (
+				isset($message["message_contents"]) &&
+				isset($message["message_contents"]["text"]) &&
+				preg_match($pregPattern, $message["message_contents"]["text"])
+			) {
 				// if contents was not asked, remove it from results @TODO manage contents=abstract
 				if ($contents == false) {
 					unset($message["message_contents"]);
@@ -611,16 +707,16 @@ class Ezmlm {
 	/**
 	 * Reads and returns metadata for the $id-th message in the current list's archive.
 	 * If $contents is true, includes the message contents; if $contents is "abstract",
-	 * includes only the first characters of the message
+	 * includes only the first characters of the message; if $silent is false,
+	 * will throw an Exception if the message is not found in the archive
 	 */
-	protected function readMessage($id, $contents=true) {
+	protected function readMessage($id, $contents=true, $silent=true) {
 		list($subfolder, $messageid) = $this->computeSubfolderAndId($id);
 		$indexPath = $this->listPath . '/archive/' . $subfolder . '/index';
 		// sioux trick to get the 2 lines concerning the message
-		$grep = 'grep "' . $id . ': " "' . $indexPath . '" -A 1';
+		$grep = 'grep "' . $id . ': " "' . $indexPath . '" --no-group-separator -A 1';
 		exec($grep, $lines);
 
-		$ret = $this->messageNotFound();
 		// in case messge was not found in the archive (might happen)
 		if (count($lines) == 2) {
 			$ret = $this->extractMessageMetadata($lines[0], $lines[1]);
@@ -631,6 +727,8 @@ class Ezmlm {
 				$messageAbstract = $this->readMessageAbstract($id);
 				$ret["message_contents"] = $messageAbstract;
 			}
+		} else {
+			$ret = $this->messageNotFound($silent);
 		}
 		return $ret;
 	}
@@ -727,7 +825,8 @@ class Ezmlm {
 			if (! empty($this->settings['messageAbstractSize']) && is_numeric($this->settings['messageAbstractSize']) && $this->settings['messageAbstractSize'] > 0) {
 				$abstractSize = $this->settings['messageAbstractSize'];
 			}
-			$text = substr($text, 0, $abstractSize);
+			// mb_ prevents breaking UTF-8 characters, that cause json_encode to fail
+			$text = mb_substr($text, 0, $abstractSize);
 		}
 		return $text;
 	}
@@ -886,6 +985,85 @@ class Ezmlm {
 	}
 
 	/**
+	 * Returns all threads having at least one message whose date matches the
+	 * given $datePortion, using "YYYY[-MM]" format
+	 * (ie. "2015" or "2015-04")
+	 */
+	protected function readThreadsByDate($datePortion, $limit=false, $details=false, $sort='desc', $offset=0) {
+		$threadsFolder = $this->listPath . '/archive/threads';
+		$year = substr($datePortion, 0, 4);
+		$month = substr($datePortion, 5, 2);
+		$day = substr($datePortion, 8, 2);
+		if (! is_numeric($year)) {
+			throw new Exception("invalid date [$year]");
+		}
+		// file(s) to read
+		$filePattern = $year;
+		if ($month != false) {
+			$filePattern .= $month;
+		} else {
+			$filePattern .= '*';
+		}
+
+		$command = "cat $threadsFolder/$filePattern";
+		exec($command, $output);
+		//var_dump($output);
+		$threads = array();
+		foreach ($output as $threadLine) {
+			$thread = $this->parseThreadLine($threadLine);
+			if ($thread !== false) {
+				// might see the same subject hash in multiple thread files (multi-month thread) but
+				// thread files are read chronologically so latest data always overwrite previous ones
+				$threads[$thread["subject_hash"]] = $thread;
+			}
+		}
+
+		// attempt to merge linked threads (eg "blah", "Re: blah", "Fwd: blah"...)
+		$this->attemptToMergeThreads($threads);
+
+		// sort by last message id descending (newer messages have greater ids) and limit;
+		// usort has the advantage of removing natural keys here, thus sending a list whose
+		// order will be preserved
+		if ($sort == 'asc') {
+			usort($threads, array($this, 'sortLeastRecentThreads'));
+		} else {
+			usort($threads, array($this, 'sortMostRecentThreads'));
+		}
+		$totalResults = count($threads);
+		// offset & limit
+		if (!is_numeric($limit) || $limit <= 0) {
+			$limit = null;
+		}
+		if (!is_numeric($offset) || $offset < 0) {
+			$offset = 0;
+		}
+		if ($offset > 0 || $limit != null) {
+			$threads = array_slice($threads, $offset, $limit);
+		}
+		//var_dump($threads); exit;
+
+		// get subject informations from subjects/ folder (author, first message, last message etc.)
+		// @WARNING takes a LOT of time for large lists
+		if ($details) {
+			foreach ($threads as &$thread) {
+				$this->readThreadsFirstAndLastMessageDetails($thread);
+				$thread["subject"] = $this->cleanThreadSubject($thread["subject"]);
+			}
+		} else {
+			// clean subjects (and avoid double loop)
+			foreach ($threads as &$thread) {
+				$thread["subject"] = $this->cleanThreadSubject($thread["subject"]);
+			}
+		}
+
+		// include all messages ? with contents ?
+		return array(
+			"total" => $totalResults,
+			"data" => $threads
+		);
+	}
+
+	/**
 	 * Reads a thread information from the archive; if $details is true, will get details
 	 * of first and last message
 	 */
@@ -928,19 +1106,21 @@ class Ezmlm {
 			var_dump($matches);
 			exit;
 		}*/
-		$lastMessageId = $matches[1];
-		$subjectHash = $matches[2];
-		$nbMessages = $matches[3];
-		$subject = $matches[4];
-		if ($pattern == false || preg_match($pattern, $subject)) {
-			list($subject, $charsetConverted) = $this->utfizeAndStats($subject);
-			$thread = array(
-				"last_message_id" => intval($lastMessageId),
-				"subject_hash" => $subjectHash,
-				"nb_messages" => intval($nbMessages),
-				"subject" => $subject,
-				"charset_converted" => $charsetConverted
-			);
+		if (count($matches) == 5) {
+			$lastMessageId = $matches[1];
+			$subjectHash = $matches[2];
+			$nbMessages = $matches[3];
+			$subject = $matches[4];
+			if ($pattern == false || preg_match($pattern, $subject)) {
+				list($subject, $charsetConverted) = $this->utfizeAndStats($subject);
+				$thread = array(
+					"last_message_id" => intval($lastMessageId),
+					"subject_hash" => $subjectHash,
+					"nb_messages" => intval($nbMessages),
+					"subject" => $subject,
+					"charset_converted" => $charsetConverted
+				);
+			}
 		}
 		return $thread;
 	}
@@ -1168,23 +1348,9 @@ class Ezmlm {
 		//var_dump($output);
 
 		$months = array();
-		$monthsNumbers = array(
-			"Jan" => "01",
-			"Feb" => "02",
-			"Mar" => "03",
-			"Apr" => "04",
-			"May" => "05",
-			"Jun" => "06",
-			"Jul" => "07",
-			"Aug" => "08",
-			"Sep" => "09",
-			"Oct" => "10",
-			"Nov" => "11",
-			"Dec" => "12"
-		);
 		foreach ($output as $line) {
 			// indices
-			$month = $monthsNumbers[substr($line, 0, 3)];
+			$month = $this->monthsNumbers[substr($line, 0, 3)];
 			$year = substr($line, 4, 4);
 			if (! isset($months[$year])) {
 				$months[$year] = array();
@@ -1358,6 +1524,12 @@ class Ezmlm {
 		);
 	}
 
+	public function getMessagesByDate($datePortion, $contents=false, $limit=false, $sort='desc', $offset=0) {
+		$this->checkValidList();
+		$threads = $this->readMessagesByDate($datePortion, $contents, $limit, $sort, $offset);
+		return $threads;
+	}
+
 	public function getLatestMessages($contents=false, $limit=10, $sort='desc') {
 		$this->checkValidList();
 		$msgs = $this->readMessagesFromArchive($contents, $limit, $sort);
@@ -1372,7 +1544,7 @@ class Ezmlm {
 
 	public function getMessage($id, $contents=true) {
 		$this->checkValidList();
-		$msg = $this->readMessage($id, $contents);
+		$msg = $this->readMessage($id, $contents, false);
 		return $msg;
 	}
 
@@ -1385,6 +1557,12 @@ class Ezmlm {
 	public function getAllThreads($pattern=false, $limit=false, $details=false, $sort='desc', $offset=0) {
 		$this->checkValidList();
 		$threads = $this->readThreadsFromArchive($pattern, $limit, $details, $sort, $offset);
+		return $threads;
+	}
+
+	public function getThreadsByDate($datePortion, $limit=false, $details=false, $sort='desc', $offset=0) {
+		$this->checkValidList();
+		$threads = $this->readThreadsByDate($datePortion, $limit, $details, $sort, $offset);
 		return $threads;
 	}
 

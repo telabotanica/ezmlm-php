@@ -297,6 +297,14 @@ class EzmlmService extends BaseService {
 						$this->searchThreads($this->resources[0]);
 					}
 					break;
+				case "date":
+					// no more resources ?
+					if (count($this->resources) == 0) {
+						$this->usage();
+					} else {
+						$this->getThreadsByDate($this->resources[0]);
+					}
+					break;
 				case "latest":
 					// more resources ?
 					$limit = false;
@@ -334,7 +342,7 @@ class EzmlmService extends BaseService {
 	}
 
 	/**
-	 * Searches among available lists
+	 * Searches among available threads
 	 */
 	protected function searchThreads($pattern) {
 		$count = ($this->getParam('count') !== null);
@@ -347,10 +355,23 @@ class EzmlmService extends BaseService {
 			$res = $this->lib->countAllThreads();
 			$this->sendJson($res);
 		} else {
-			// @TODO manage "details" switch
 			$threads = $this->lib->getAllThreads($pattern, $limit, $details, $sort, $offset);
 			$this->sendMultipleResults($threads);
 		}
+	}
+
+	/**
+	 * Returns all threads having at least one message whose date matches the
+	 * given $datePortion, using "YYYY[-MM]" format (ie. "2015" or "2015-04")
+	 */
+	protected function getThreadsByDate($datePortion) {
+		$details = $this->parseBool($this->getParam('details'));
+		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
+		//echo "getThreadsByDate($datePortion)";
+		$threads = $this->lib->getThreadsByDate($datePortion, $limit, $details, $sort, $offset);
+		$this->sendMultipleResults($threads);
 	}
 
 	protected function getLatestThreads($limit=false) {
@@ -565,6 +586,14 @@ class EzmlmService extends BaseService {
 						$this->usage();
 					}
 					break;
+				case "date":
+					// more resources ?
+					if (count($this->resources) > 0) {
+						$this->getMessagesByDate(array_shift($this->resources));
+					} else {
+						$this->usage();
+					}
+					break;
 				default:
 					// this should be a message id
 					if (is_numeric($nextResource)) {
@@ -617,6 +646,22 @@ class EzmlmService extends BaseService {
 			$this->buildAttachmentsLinks($res);
 			$this->sendMultipleResults($res);
 		}
+	}
+
+	/**
+	 * Returns all messages whose date matches the given $datePortion, using
+	 * "YYYY[-MM[-DD]]" format (ie. "2015", "2015-04" or "2015-04-23")
+	 */
+	protected function getMessagesByDate($datePortion) {
+		$contents = $this->parseBool($this->getParam('contents'));
+		$sort = $this->getParam('sort', 'desc');
+		$offset = $this->getParam('offset', 0);
+		$limit = $this->getParam('limit', null);
+		//echo "getThreadsByDate($datePortion)";
+		// @TODO manage ?count
+		$res = $this->lib->getMessagesByDate($datePortion, $contents, $limit, $sort, $offset);
+		$this->buildAttachmentsLinks($res);
+		$this->sendMultipleResults($res);
 	}
 
 	protected function getLatestMessages($limit=false) {
