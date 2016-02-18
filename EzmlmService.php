@@ -2,11 +2,12 @@
 
 require_once 'BaseService.php';
 require_once 'Ezmlm.php';
+require_once 'EzmlmInterface.php';
 
 /**
  * REST API to access an ezmlm list
  */
-class EzmlmService extends BaseService {
+class EzmlmService extends BaseService implements EzmlmInterface {
 
 	/** JSON Autodocumentation */
 	public static $AUTODOC_PATH = "autodoc.json";
@@ -795,6 +796,33 @@ class EzmlmService extends BaseService {
 							case "moderators":
 								$this->addModerator($jsonData);
 								break;
+							case "messages":
+								$this->sendMessage($jsonData);
+								break;
+							case "threads":
+								// no more resources ?
+								if (count($this->resources) == 0) {
+									$this->usage();
+									return false;
+								} else {
+									// storing list name
+									$threadHash = array_shift($this->resources);
+									// no more resources ?
+									if (count($this->resources) == 0) {
+										$this->usage();
+										return false;
+									} else {
+										$nextResource = array_shift($this->resources);
+										switch ($nextResource) {
+											case "messages":
+												$this->sendMessage($jsonData, $threadHash);
+												break;
+											default:
+												usage();
+										}
+									}
+								}
+								break;
 							default:
 								$this->usage();
 								return false;
@@ -874,6 +902,30 @@ class EzmlmService extends BaseService {
 			));
 		} else {
 			$this->sendError('unknown error in addModerator()');
+		}
+	}
+
+	/**
+	 * Sends a message to the list
+	 */
+	protected function sendMessage($data, $threadHash=null) {
+		//echo "sendMessage: [$threadHash]";
+		//var_dump($data);
+		if (empty($data['body'])) {
+			$this->sendError("missing 'body' in JSON data");
+		}
+		if ($threadHash == "" && empty($data['subject'])) {
+			$this->sendError("please provide either a threadHash parameter or a 'subject' field in JSON data");
+		}
+		// send message
+		$ret = $this->lib->sendMessage($data, $threadHash);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"list" => $this->listName,
+				"message_sent" => true
+			));
+		} else {
+			$this->sendError('unknown error in sendMessage()');
 		}
 	}
 

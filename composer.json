@@ -1,5 +1,6 @@
 {
     "require": {
-        "php-mime-mail-parser/php-mime-mail-parser": "^2.1"
+        "php-mime-mail-parser/php-mime-mail-parser": "^2.1",
+        "phpmailer/phpmailer": "^5.2"
     }
 }

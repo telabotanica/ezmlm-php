@@ -38,6 +38,21 @@ class AuthTB {
 	}
 
 	/**
+	 * Retourne l'adresse email de l'utilisateur (stockée dans "sub" pour
+	 * l'instant)
+	 */
+	public function getUserEmail() {
+		return $this->user['sub'];
+	}
+
+	/**
+	 * Retourne le nom complet / pseudo de l'utilisateur
+	 */
+	public function getUserFullName() {
+		return $this->user['intitule'];
+	}
+
+	/**
 	 * Retourne les groupes auxquels l'utilisateur en cours appartient
 	 */
 	public function getUserGroups() {

@@ -1,12 +1,13 @@
 <?php
 
+require_once 'EzmlmInterface.php';
 // composer
 require_once 'vendor/autoload.php';
 
 /**
  * Library for ezmlm discussion lists management
  */
-class Ezmlm {
+class Ezmlm implements EzmlmInterface {
 
 	/** JSON config */
 	protected $config = array();
@@ -1328,8 +1329,8 @@ class Ezmlm {
 		$info['nb_messages'] = $this->countAllMessages();
 		$firstMessage = $this->readMessagesFromArchive(false, 1, 'asc');
 		$lastMessage = $this->readMessagesFromArchive(false, 1, 'desc');
-		$info['first_message'] = $firstMessage[0];
-		$info['last_message'] = $lastMessage[0];
+		$info['first_message'] = isset($firstMessage[0]) ? $firstMessage[0] : false;
+		$info['last_message'] = isset($lastMessage[0]) ? $lastMessage[0] : false;
 		return $info;
 	}
 
@@ -1506,6 +1507,105 @@ class Ezmlm {
 		$options = $this->listPath . '/allow ' . $posterEmail;
 		$ret = $this->rt($command, $options);
 		return $ret;
+	}
+
+	/**
+	 * Sends a message to the current list, using the SMTP server from the
+	 * config file, and the identity of the currently logged-in user (using SSO
+	 * authentication)
+	 */
+	public function sendMessage($data, $threadHash=null) {
+		$mail = new PHPMailer();
+
+		$user = $this->authAdapter->getUser();
+		//var_dump($user);
+		if ($user == null) {
+			throw new Exception('you must be logged in to post messages');
+		}
+
+		// info needed :
+		// 1) from (logged-in person's email address + alias)
+		$authFrom = $this->authAdapter->getUserEmail();
+		$from = $authFrom;
+		if (isset($data['from'])) {
+			$from = $data['from'];
+			// identity usurpation ? check rights !
+			if ($authFrom != $from && ! $this->authAdapter->isAdmin()) {
+				throw new Exception("thou shall not usurpate your neighbour's identity unless you are The Admin");
+			}
+		}
+		$authFromAlias = $this->authAdapter->getUserFullName();
+		$fromAlias = $authFromAlias;
+		if (isset($data['from_alias'])) {
+			$fromAlias = $data['from_alias'];
+			// identity usurpation ? check rights !
+			if ($authFrom != $fromAlias && ! $this->authAdapter->isAdmin()) {
+				throw new Exception("thou shall not misspel your neighbour's name unless you are The Admin");
+			}
+		}
+
+		// 2) to (list address + alias)
+		$listInfo = $this->getListInfo();
+		//var_dump($listInfo);
+		$to = $listInfo['list_address'];
+		$toAlias = $listInfo['list_name'];
+
+		// 3) subject (new or read from subjectHash)
+		if ($threadHash != "") {
+			$threadInfo = $this->getThread($threadHash);
+			//var_dump($threadInfo);
+			$subject = $threadInfo['subject'];
+		} elseif (! empty($data['subject'])) {
+			$subject = $data['subject'];
+		} else {
+			throw new Exception("please provide either a threadHash parameter or a 'subject' field in JSON data");
+		}
+
+		// 4) attachments (base64 from POST data)
+
+		// - format (HTML)
+		// - body (HTML + text)
+		
+		// RECAP !
+		echo "FROM: $from\n";
+		echo "FROM ALIAS: $fromAlias\n";
+		echo "TO: $to\n";
+		echo "TO ALIAS: $toAlias\n";
+		echo "SUBJECT: $subject\n";
+		exit;
+
+		//$mail->SMTPDebug = 3;                               // Enable verbose debug output
+		//$mail->isSMTP();                                      // Set mailer to use SMTP
+		//$mail->Host = 'smtp1.example.com;smtp2.example.com';  // Specify main and backup SMTP servers
+		//$mail->SMTPAuth = true;                               // Enable SMTP authentication
+		//$mail->Username = 'user@example.com';                 // SMTP username
+		//$mail->Password = 'secret';                           // SMTP password
+		//$mail->SMTPSecure = 'tls';                            // Enable TLS encryption, `ssl` also accepted
+		//$mail->Port = 587;                                    // TCP port to connect to
+
+		$mail->setFrom('from@example.com', 'Mailer');
+		$mail->addAddress('joe@example.net', 'Joe User');     // Add a recipient
+		$mail->addAddress('ellen@example.com');               // Name is optional
+		$mail->addReplyTo('info@example.com', 'Information');
+		$mail->addCC('cc@example.com');
+		$mail->addBCC('bcc@example.com');
+
+		$mail->addAttachment('/var/tmp/file.tar.gz');         // Add attachments
+		$mail->addAttachment('/tmp/image.jpg', 'new.jpg');    // Optional name
+		$mail->isHTML(true);                                  // Set email format to HTML
+
+		$mail->setLanguage('fr');
+
+		$mail->Subject = 'Here is the subject';
+		$mail->Body    = 'This is the HTML message body <b>in bold!</b>';
+		$mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
+
+		if(!$mail->send()) {
+			echo 'Message could not be sent.';
+			echo 'Mailer Error: ' . $mail->ErrorInfo;
+		} else {
+			echo 'Message has been sent';
+		}
 	}
 
 	public function countAllMessages() {
