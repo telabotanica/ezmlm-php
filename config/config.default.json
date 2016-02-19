@@ -6,6 +6,9 @@
 	"ezmlm-idx": {
 		"binariesPath": "/usr/local/bin/ezmlm"
 	},
+	"system": {
+		"grepBinary": "/bin/grep"
+	},
 	"authAdapter": "AuthTB",
 	"adapters": {
 		"AuthTB": {

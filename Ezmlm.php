@@ -40,6 +40,9 @@ class Ezmlm implements EzmlmInterface {
 	/** various settings read from config */
 	protected $settings;
 
+	/** grep binary - a recent version is needed */
+	protected $grepBinary;
+
 	/** abbreviations used by ezmlm-archive */
 	protected $monthsNumbers = array(
 		"Jan" => "01",
@@ -90,6 +93,12 @@ class Ezmlm implements EzmlmInterface {
 		$this->cachePath = $this->config['cache']['path'];
 		// various settings
 		$this->settings = $this->config['settings'];
+
+		// binaries location (specific versions might be needed)
+		$this->grepBinary = "grep";
+		if (!empty($this->config['system']['grepBinary'])) {
+			$this->grepBinary = $this->config['system']['grepBinary'];
+		}
 	}
 
 	protected function notImplemented() {
@@ -555,7 +564,7 @@ class Ezmlm implements EzmlmInterface {
 		}
 		//var_dump($pattern); exit;
 		$archiveDir = $this->listPath . '/archive';
-		$command = 'grep --no-group-separator -hP -B1 "' . $pattern . '" ' . $archiveDir . '/*/index';
+		$command = $this->grepBinary . ' --no-group-separator -hP -B1 "' . $pattern . '" ' . $archiveDir . '/*/index';
 		exec($command, $output);
 		// sort (BASH "*" expansion is alphabetical)
 		if ($sort == 'desc') {
@@ -715,7 +724,7 @@ class Ezmlm implements EzmlmInterface {
 		list($subfolder, $messageid) = $this->computeSubfolderAndId($id);
 		$indexPath = $this->listPath . '/archive/' . $subfolder . '/index';
 		// sioux trick to get the 2 lines concerning the message
-		$grep = 'grep "' . $id . ': " "' . $indexPath . '" --no-group-separator -A 1';
+		$grep = $this->grepBinary . ' "' . $id . ': " "' . $indexPath . '" --no-group-separator -A 1';
 		exec($grep, $lines);
 
 		// in case messge was not found in the archive (might happen)
@@ -1217,7 +1226,7 @@ class Ezmlm implements EzmlmInterface {
 	protected function getThreadsMessagesIds($hash, $limit=false) {
 		$subjectFile = $this->getSubjectFile($hash);
 		// read 2nd line (1st message)
-		$command = "grep";
+		$command = $this->grepBinary;
 		if (is_numeric($limit) && $limit > 0) {
 			$command .= " -m $limit";
 		}
@@ -1344,7 +1353,7 @@ class Ezmlm implements EzmlmInterface {
 		// files cause although they are sorted by month, the number of messages
 		// they mention for each thread is culumated through all months of the
 		// list existence
-		$command = 'grep -oPh "[0-9]{1,2} \K[a-zA-Z]{3} [0-9]{4} " ' . $archiveFolder . '/*/index';
+		$command = $this->grepBinary . ' -oPh "[0-9]{1,2} \K[a-zA-Z]{3} [0-9]{4} " ' . $archiveFolder . '/*/index';
 		exec($command, $output);
 		//var_dump($output);
 
