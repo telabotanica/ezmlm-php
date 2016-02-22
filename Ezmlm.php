@@ -45,18 +45,18 @@ class Ezmlm implements EzmlmInterface {
 
 	/** abbreviations used by ezmlm-archive */
 	protected $monthsNumbers = array(
-		"Jan" => "01",
-		"Feb" => "02",
-		"Mar" => "03",
-		"Apr" => "04",
-		"May" => "05",
-		"Jun" => "06",
-		"Jul" => "07",
-		"Aug" => "08",
-		"Sep" => "09",
-		"Oct" => "10",
-		"Nov" => "11",
-		"Dec" => "12"
+		"jan" => "01",
+		"feb" => "02",
+		"mar" => "03",
+		"apr" => "04",
+		"may" => "05",
+		"jun" => "06",
+		"jul" => "07",
+		"aug" => "08",
+		"sep" => "09",
+		"oct" => "10",
+		"nov" => "11",
+		"dec" => "12"
 	);
 
 	public function __construct() {
@@ -564,7 +564,7 @@ class Ezmlm implements EzmlmInterface {
 		}
 		//var_dump($pattern); exit;
 		$archiveDir = $this->listPath . '/archive';
-		$command = $this->grepBinary . ' --no-group-separator -hP -B1 "' . $pattern . '" ' . $archiveDir . '/*/index';
+		$command = $this->grepBinary . ' --no-group-separator -i -hP -B1 "' . $pattern . '" ' . $archiveDir . '/*/index';
 		exec($command, $output);
 		// sort (BASH "*" expansion is alphabetical)
 		if ($sort == 'desc') {
@@ -1360,7 +1360,7 @@ class Ezmlm implements EzmlmInterface {
 		$months = array();
 		foreach ($output as $line) {
 			// indices
-			$month = $this->monthsNumbers[substr($line, 0, 3)];
+			$month = $this->monthsNumbers[strtolower(substr($line, 0, 3))];
 			$year = substr($line, 4, 4);
 			if (! isset($months[$year])) {
 				$months[$year] = array();
