@@ -1459,21 +1459,29 @@ class Ezmlm implements EzmlmInterface {
 
 	public function getModerators() {
 		$this->checkValidList();
+		$ret = array();
 		$command = "ezmlm-list";
-		$options = $this->listPath . '/mod';
-		$ret = $this->rt($command, $options, true);
-		// ezmlm returns one result per line
-		$ret = array_filter(explode("\n", $ret));
+		$modFile = $this->listPath . '/mod';
+		if (file_exists($modFile)) {
+			$options = $modFile;
+			$ret = $this->rt($command, $options, true);
+			// ezmlm returns one result per line
+			$ret = array_filter(explode("\n", $ret));
+		}
 		return $ret;
 	}
 
 	public function getPosters() {
 		$this->checkValidList();
+		$ret = array();
 		$command = "ezmlm-list";
-		$options = $this->listPath . '/allow';
-		$ret = $this->rt($command, $options, true);
-		// ezmlm returns one result per line
-		$ret = array_filter(explode("\n", $ret));
+		$allowedFile = $this->listPath . '/allow';
+		if (file_exists($allowedFile)) {
+			$options = $allowedFile;
+			$ret = $this->rt($command, $options, true);
+			// ezmlm returns one result per line
+			$ret = array_filter(explode("\n", $ret));
+		}
 		return $ret;
 	}
 
@@ -1786,9 +1794,13 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function userIsModeratorOf($userEmail, $listName) {
+		$ret = false;
 		$this->setListName($listName);
 		$listModerators = $this->getModerators();
-		return in_array($userEmail, $listModerators);
+		if ($listModerators != null) {
+			$ret = in_array($userEmail, $listModerators);
+		}
+		return $ret;
 	}
 
 	/**
@@ -1811,9 +1823,13 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function userIsSubscriberOf($userEmail, $listName) {
+		$ret = false;
 		$this->setListName($listName);
 		$listSubscribers = $this->getSubscribers();
-		return in_array($userEmail, $listSubscribers);
+		if ($listSubscribers != null) {
+			$ret = in_array($userEmail, $listSubscribers);
+		}
+		return $ret;
 	}
 
 	/**
@@ -1836,8 +1852,12 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function userIsAllowedIn($userEmail, $listName) {
+		$ret = false;
 		$this->setListName($listName);
 		$listAllowed = $this->getPosters();
-		return in_array($userEmail, $listAllowed);
+		if ($listAllowed != null) {
+			$ret = in_array($userEmail, $listAllowed);
+		}
+		return $ret;
 	}
 }
