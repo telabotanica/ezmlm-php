@@ -83,18 +83,6 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	/**
-	 * A version of explode() that preserves NULL values - allows to make the
-	 * difference between '' and NULL in multiple parameters, like "keywords"
-	 */
-	/*protected function explode($delimiter, $string) {
-		if ($string === null) {
-			return null;
-		} else {
-			return explode($delimiter, $string);
-		}
-	}*/
-
-	/**
 	 * Returns true if $val is true or "true", false if $val is
 	 * false or "false", $val if $val is any other value
 	 */
@@ -196,10 +184,117 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 					}
 					break;
 				}
+			case 'users':
+				$this->getByUsers();
+				break;
 			default:
 				$this->usage();
 				return false;
 		}
+	}
+
+	/**
+	 * Entry point for /users/* URIs
+	 */
+	protected function getByUsers() {
+		// no more resources ?
+		if (count($this->resources) == 0) {
+			$this->getAllUsers();
+		} else {
+			$userEmail = array_shift($this->resources);
+			// no more resources ?
+			if (count($this->resources) == 0) {
+				$this->getUserInfo($userEmail);
+			} else {
+				$nextResource = array_shift($this->resources);
+				switch ($nextResource) {
+					case "moderator-of":
+						// no more resources ?
+						if (count($this->resources) == 0) {
+							$this->getListsUserIsModeratorOf($userEmail);
+						} else {
+							$this->userIsModeratorOf($userEmail, array_shift($this->resources));
+						}
+						break;
+					case "subscriber-of":
+						// no more resources ?
+						if (count($this->resources) == 0) {
+							$this->getListsUserIsSubscriberOf($userEmail);
+						} else {
+							$this->userIsSubscriberOf($userEmail, array_shift($this->resources));
+						}
+						break;
+					case "allowed-in":
+						// no more resources ?
+						if (count($this->resources) == 0) {
+							$this->getListsUserIsAllowedIn($userEmail);
+						} else {
+							$this->userIsAllowedIn($userEmail, array_shift($this->resources));
+						}
+						break;
+					default:
+						$this->usage();
+				}
+			}
+		}
+	}
+
+	// @TODO admin only
+	protected function getAllUsers() {
+		throw new Exception('not implemented');
+	}
+
+	// @TODO admin or same user only
+	protected function getUserInfo() {
+		throw new Exception('not implemented');
+	}
+
+	/**
+	 * Returns all the lists the current user is moderator of
+	 */
+	protected function getListsUserIsModeratorOf($userEmail) {
+		$lists = $this->lib->getListsUserIsModeratorOf($userEmail);
+		$this->sendMultipleResults($lists);
+	}
+
+	/**
+	 * Returns true if the current user is moderator of the list $listName
+	 */
+	protected function userIsModeratorOf($userEmail, $listName) {
+		$info = $this->lib->userIsModeratorOf($userEmail, $listName);
+		$this->sendJson($info);
+	}
+
+	/**
+	 * Returns all the lists the current user is subscriber of
+	 */
+	protected function getListsUserIsSubscriberOf($userEmail) {
+		$lists = $this->lib->getListsUserIsSubscriberOf($userEmail);
+		$this->sendMultipleResults($lists);
+	}
+
+	/**
+	 * Returns true if the current user is subscriber of the list $listName
+	 */
+	protected function userIsSubscriberOf($userEmail, $listName) {
+		$info = $this->lib->userIsSubscriberOf($userEmail, $listName);
+		$this->sendJson($info);
+	}
+
+	/**
+	 * Returns all the lists the current user is allowed to write to
+	 */
+	protected function getListsUserIsAllowedIn($userEmail) {
+		$lists = $this->lib->getListsUserIsAllowedIn($userEmail);
+		$this->sendMultipleResults($lists);
+	}
+
+	/**
+	 * Returns true if the current user is allowed to write to the list $listName
+	 */
+	protected function userIsAllowedIn($userEmail, $listName) {
+		$info = $this->lib->userIsAllowedIn($userEmail, $listName);
+		$this->sendJson($info);
 	}
 
 	/**
@@ -281,7 +376,7 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	/**
-	 * Entry point for /threads/* URIs
+	 * Entry point for /lists/X/threads/* URIs
 	 */
 	protected function getByThreads() {
 		// no more resources ?
@@ -512,7 +607,7 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	/**
-	 * Entry point for /authors/* URIs
+	 * Entry point for /lists/X/authors/* URIs
 	 */
 	protected function getByAuthors() {
 		// no more resources ?
@@ -561,7 +656,7 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	/**
-	 * Entry point for /messages/* URIs
+	 * Entry point for /lists/X/messages/* URIs
 	 */
 	protected function getByMessages() {
 		// no more resources ?

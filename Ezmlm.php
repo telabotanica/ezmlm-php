@@ -120,7 +120,7 @@ class Ezmlm implements EzmlmInterface {
 	 * @WARNING minimalistic
 	 * @TODO improve !
 	 */
-	protected function ckeckAllowedArgument($arg) {
+	protected function checkAllowedArgument($arg) {
 		if (strpos($arg, "..") !== false || strpos($arg, "/") !== false) {
 			throw new Exception("forbidden command / argument: [$arg]");
 		}
@@ -1764,5 +1764,80 @@ class Ezmlm implements EzmlmInterface {
 		}
 		$nextMessage = $this->readMessage($ids[$key+1], $contents);
 		return $nextMessage;
+	}
+
+	/**
+	 * Returns all the lists the current user is moderator of
+	 * @TODO admin or same user only
+	 */
+	public function getListsUserIsModeratorOf($userEmail) {
+		$listsUserIsModeratorOf = array();
+		$lists = $this->getLists();
+		foreach($lists as $list) {
+			if ($this->userIsModeratorOf($userEmail, $list)) {
+				$listsUserIsModeratorOf[] = $list;
+			}
+		}
+		return $listsUserIsModeratorOf;
+	}
+
+	/**
+	 * Returns true if the current user is moderator of the list $listName
+	 * @TODO admin or same user only
+	 */
+	public function userIsModeratorOf($userEmail, $listName) {
+		$this->setListName($listName);
+		$listModerators = $this->getModerators();
+		return in_array($userEmail, $listModerators);
+	}
+
+	/**
+	 * Returns all the lists the current user is subscriber of
+	 * @TODO admin or same user only
+	 */
+	public function getListsUserIsSubscriberOf($userEmail) {
+		$listsUserIsSubscriberOf = array();
+		$lists = $this->getLists();
+		foreach($lists as $list) {
+			if ($this->userIsSubscriberOf($userEmail, $list)) {
+				$listsUserIsSubscriberOf[] = $list;
+			}
+		}
+		return $listsUserIsSubscriberOf;
+	}
+
+	/**
+	 * Returns true if the current user is subscriber of the list $listName
+	 * @TODO admin or same user only
+	 */
+	public function userIsSubscriberOf($userEmail, $listName) {
+		$this->setListName($listName);
+		$listSubscribers = $this->getSubscribers();
+		return in_array($userEmail, $listSubscribers);
+	}
+
+	/**
+	 * Returns all the lists the current user is allowed to write to
+	 * @TODO admin or same user only
+	 */
+	public function getListsUserIsAllowedIn($userEmail) {
+		$listsUserIsAllowedIn = array();
+		$lists = $this->getLists();
+		foreach($lists as $list) {
+			if ($this->userIsAllowedIn($userEmail, $list)) {
+				$listsUserIsAllowedIn[] = $list;
+			}
+		}
+		return $listsUserIsAllowedIn;
+	}
+
+	/**
+	 * Returns true if the current user is allowed to write to the list $listName
+	 * @TODO admin or same user only
+	 */
+	public function userIsAllowedIn($userEmail, $listName) {
+		$this->setListName($listName);
+		$listAllowed = $this->getPosters();
+		return in_array($userEmail, $listAllowed);
 	}
 }
