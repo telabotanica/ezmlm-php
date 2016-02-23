@@ -1341,6 +1341,7 @@ class Ezmlm implements EzmlmInterface {
 		$info = array();
 		$info['list_name'] = $this->listName;
 		$info['list_address'] = $this->listName . '@' . $this->domainName;
+		$info['lang'] = $this->getListLanguage();
 		$info['nb_threads'] = $this->countAllThreads();
 		$info['nb_messages'] = $this->countAllMessages();
 		$firstMessage = $this->readMessagesFromArchive(false, 1, 'asc');
@@ -1351,10 +1352,29 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
+	 * Returns the language code for the current list; reads it from the
+	 * "conf-lang" file in list folder; if it doesn't exist, assumes "en"
+	 */
+	protected function getListLanguage() {
+		$this->checkValidList();
+		// hardcoded default, as ezmlm doesn't allows to change the default language
+		$lang = "en";
+
+		$langFile = $this->listPath . '/conf-lang';
+		if (file_exists($langFile)) {
+			$command = "cat $langFile";
+			exec($command, $output);
+			$lang = $output[0];
+		}
+		return $lang;
+	}
+
+	/**
 	 * Returns the "calendar" for a list : a summary of the number of messages
 	 * per month per year (glad the threads are sorted by month in the archive !)
 	 */
 	public function getListCalendar() {
+		$this->checkValidList();
 		$archiveFolder = $this->listPath . '/archive';
 		// grep messages dates amon all archive indexes - cannot be done with thread
 		// files cause although they are sorted by month, the number of messages
