@@ -102,6 +102,10 @@ class Ezmlm implements EzmlmInterface {
 		if (!empty($this->config['system']['grepBinary'])) {
 			$this->grepBinary = $this->config['system']['grepBinary'];
 		}
+		$this->findBinary = "find";
+		if (!empty($this->config['system']['findBinary'])) {
+			$this->findBinary = $this->config['system']['findBinary'];
+		}
 	}
 
 	protected function notImplemented() {
