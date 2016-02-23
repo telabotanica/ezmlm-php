@@ -43,6 +43,9 @@ class Ezmlm implements EzmlmInterface {
 	/** grep binary - a recent version is needed */
 	protected $grepBinary;
 
+	/** "find" binary - might not be found by PHP's exec() shell */
+	protected $findBinary;
+
 	/** abbreviations used by ezmlm-archive */
 	protected $monthsNumbers = array(
 		"jan" => "01",
@@ -678,7 +681,7 @@ class Ezmlm implements EzmlmInterface {
 		}
 		$archiveDir = $this->listPath . '/archive';
 		// grep the pattern in message files only
-		$command = "find $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec grep -i -l -R "' . $grepPattern . '" {} +';
+		$command = $this->findBinary . " $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec grep -i -l -R "' . $grepPattern . '" {} +';
 		exec($command, $output);
 		// message header or attachments might have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
