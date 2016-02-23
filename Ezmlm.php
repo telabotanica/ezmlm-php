@@ -402,12 +402,14 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns the months numbers / names array for the current list's language,
 	 * if it exists, or defaults to "en" numbers / names
 	 */
-	protected function getMonthsNumbersForLang() {
+	protected function getMonthsNumbersForLang($lang=null) {
 		$monthsNumbersForLang = $this->monthsNumbers["en"];
 		// months names depending on the list's language
-		$listLang = $this->getListLanguage();
-		if (array_key_exists($listLang, $this->monthsNumbers)) {
-			$monthsNumbersForLang = $this->monthsNumbers[$listLang];
+		if ($lang == null) {
+			$lang = $this->getListLanguage();
+		}
+		if (array_key_exists($lang, $this->monthsNumbers)) {
+			$monthsNumbersForLang = $this->monthsNumbers[$lang];
 		}
 		return $monthsNumbersForLang;
 	}
@@ -417,9 +419,9 @@ class Ezmlm implements EzmlmInterface {
 	 * current list's language; falls back to "en" if the abreviation doesn't
 	 * exist in the localized array
 	 */
-	protected function getMonthNumber($monthAbr) {
+	protected function getMonthNumber($monthAbr, $lang=null) {
 		$monthNumber = false;
-		$monthsNumbersForLang = $this->getMonthsNumbersForLang();
+		$monthsNumbersForLang = $this->getMonthsNumbersForLang($lang);
 		// sometimes, a non-english list has archives mentioning english
 		// month abreviations; probably the language was en at first, then
 		// was changed at some point
@@ -1435,9 +1437,10 @@ class Ezmlm implements EzmlmInterface {
 		//var_dump($output);
 
 		$months = array();
+		$listLang = $this->getListLanguage();
 		foreach ($output as $line) {
 			// indices
-			$month = $this->getMonthNumber(strtolower(substr($line, 0, 3)));
+			$month = $this->getMonthNumber(strtolower(substr($line, 0, 3)), $listLang);
 			$year = substr($line, 4, 4);
 			if (! isset($months[$year])) {
 				$months[$year] = array();
