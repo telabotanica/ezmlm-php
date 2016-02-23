@@ -48,18 +48,34 @@ class Ezmlm implements EzmlmInterface {
 
 	/** abbreviations used by ezmlm-archive */
 	protected $monthsNumbers = array(
-		"jan" => "01",
-		"feb" => "02",
-		"mar" => "03",
-		"apr" => "04",
-		"may" => "05",
-		"jun" => "06",
-		"jul" => "07",
-		"aug" => "08",
-		"sep" => "09",
-		"oct" => "10",
-		"nov" => "11",
-		"dec" => "12"
+		"en" => array(
+			"jan" => "01",
+			"feb" => "02",
+			"mar" => "03",
+			"apr" => "04",
+			"may" => "05",
+			"jun" => "06",
+			"jul" => "07",
+			"aug" => "08",
+			"sep" => "09",
+			"oct" => "10",
+			"nov" => "11",
+			"dec" => "12"
+		),
+		"fr" => array(
+			"jan" => "01",
+			"fev" => "02",
+			"mar" => "03",
+			"avr" => "04",
+			"mai" => "05",
+			"jun" => "06",
+			"jul" => "07",
+			"aou" => "08",
+			"sep" => "09",
+			"oct" => "10",
+			"nov" => "11",
+			"dec" => "12"
+		)
 	);
 
 	public function __construct() {
@@ -382,6 +398,20 @@ class Ezmlm implements EzmlmInterface {
 		}
 	}
 
+	/**
+	 * Returns the months numbers / names array for the current list's language,
+	 * if it exists, or defaults to "en" numbers / names
+	 */
+	protected function getMonthsNumbersForLang() {
+		$monthsNumbersForLang = $this->monthsNumbers["en"];
+		// months names depending on the list's language
+		$listLang = $this->getListLanguage();
+		if (array_key_exists($listLang, $this->monthsNumbers)) {
+			$monthsNumbersForLang = $this->monthsNumbers[$listLang];
+		}
+		return $monthsNumbersForLang;
+	}
+
 	// ------------------ PARSING METHODS -------------------------
 
 	/**
@@ -562,7 +592,8 @@ class Ezmlm implements EzmlmInterface {
 		}
 		// file(s) to read
 		$pattern = $year;
-		$monthsNames = array_flip($this->monthsNumbers);
+		$monthsNumbersForLang = $this->getMonthsNumbersForLang();
+		$monthsNames = array_flip($monthsNumbersForLang);
 		if ($month != false) {
 			$pattern = $monthsNames[$month] . ' ' . $pattern;
 		}
@@ -1387,7 +1418,8 @@ class Ezmlm implements EzmlmInterface {
 		$months = array();
 		foreach ($output as $line) {
 			// indices
-			$month = $this->monthsNumbers[strtolower(substr($line, 0, 3))];
+			$monthsNumbersForLang = $this->getMonthsNumbersForLang();
+			$month = $monthsNumbersForLang[strtolower(substr($line, 0, 3))];
 			$year = substr($line, 4, 4);
 			if (! isset($months[$year])) {
 				$months[$year] = array();
