@@ -412,6 +412,25 @@ class Ezmlm implements EzmlmInterface {
 		return $monthsNumbersForLang;
 	}
 
+	/**
+	 * Returns a month number given a month name abreviation, dependnig on the
+	 * current list's language; falls back to "en" if the abreviation doesn't
+	 * exist in the localized array
+	 */
+	protected function getMonthNumber($monthAbr) {
+		$monthNumber = false;
+		$monthsNumbersForLang = $this->getMonthsNumbersForLang();
+		// sometimes, a non-english list has archives mentioning english
+		// month abreviations; probably the language was en at first, then
+		// was changed at some point
+		if (array_key_exists($monthAbr, $monthsNumbersForLang)) {
+			$monthNumber = $monthsNumbersForLang[$monthAbr];
+		} else {
+			$monthNumber = $this->monthsNumbers['en'][$monthAbr];
+		}
+		return $monthNumber;
+	}
+
 	// ------------------ PARSING METHODS -------------------------
 
 	/**
@@ -1418,8 +1437,7 @@ class Ezmlm implements EzmlmInterface {
 		$months = array();
 		foreach ($output as $line) {
 			// indices
-			$monthsNumbersForLang = $this->getMonthsNumbersForLang();
-			$month = $monthsNumbersForLang[strtolower(substr($line, 0, 3))];
+			$month = $this->getMonthNumber(strtolower(substr($line, 0, 3)));
 			$year = substr($line, 4, 4);
 			if (! isset($months[$year])) {
 				$months[$year] = array();
