@@ -681,7 +681,7 @@ class Ezmlm implements EzmlmInterface {
 		}
 		$archiveDir = $this->listPath . '/archive';
 		// grep the pattern in message files only
-		$command = $this->findBinary . " $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec grep -i -l -R "' . $grepPattern . '" {} +';
+		$command = $this->findBinary . " $archiveDir -regextype sed -regex " . '"' . $archiveDir . '/[0-9]\+/[0-9]\+$" -exec ' . $this->grepBinary . ' -i -l -R "' . $grepPattern . '" {} +';
 		exec($command, $output);
 		// message header or attachments might have matched $pattern - extracting
 		// message text to ensure the match was not a false positive
