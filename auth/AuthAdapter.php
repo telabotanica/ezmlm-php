@@ -34,7 +34,13 @@ abstract class AuthAdapter {
 	public abstract function getUser();
 
 	/**
-	 * throws an exception if the user has no "read" rights
+	 * must return true if the email address of the current user is equal to
+	 * the specified $userEmail
+	 */
+	public abstract function isCurrentUser($userEmail);
+
+	/**
+	 * throws an exception if the current user has no "read" rights
 	 */
 	public function requireReadRights() {
 		if (! $this->mayRead()) {
@@ -43,7 +49,7 @@ abstract class AuthAdapter {
 	}
 
 	/**
-	 * throws an exception if the user has no "post" rights
+	 * throws an exception if the current user has no "post" rights
 	 */
 	public function requirePostRights() {
 		if (! $this->mayPost()) {
@@ -52,7 +58,7 @@ abstract class AuthAdapter {
 	}
 
 	/**
-	 * throws an exception if the user is no moderator
+	 * throws an exception if the current user is no moderator
 	 */
 	public function requireModerator() {
 		if (! $this->isModerator()) {
@@ -61,7 +67,17 @@ abstract class AuthAdapter {
 	}
 
 	/**
-	 * throws an exception if the user is no admin
+	 * throws an exception if the current user's email is different from
+	 * the specified $userEmail
+	 */
+	public function requireUser($userEmail) {
+		if (! $this->isCurrentUser($userEmail)) {
+			throw new Exception('Information about users can only be obtained by themselves or an admin');
+		}
+	}
+
+	/**
+	 * throws an exception if the current user is no admin
 	 */
 	public function requireAdmin() {
 		if (! $this->isAdmin()) {

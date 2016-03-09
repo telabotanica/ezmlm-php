@@ -647,7 +647,7 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Comparison function for usort() returning oldest messages first : a lower
-	 * message_id always mean an older date
+	 * message_id always means an older date
 	 */
 	protected function sortMessagesByIdAsc($a, $b) {
 		return $a['message_id'] - $b['message_id'];
@@ -655,7 +655,7 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Comparison function for usort() returning oldest messages first : a lower
-	 * message_id always mean an older date
+	 * message_id always means an older date
 	 */
 	protected function sortMessagesByIdDesc($a, $b) {
 		return $this->sortMessagesByIdAsc($b, $a);
@@ -1364,6 +1364,14 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	public function getLists($pattern=false) {
+		$this->authAdapter->requireAdmin();
+		return $this->doGetLists($pattern);
+	}
+
+	/**
+	 * getLists, but doesn't control rights (internal use)
+	 */
+	protected function doGetLists($pattern=false) {
 		$pattern = $this->convertPatternForPreg($pattern);
 		$dirP = opendir('.');
 		$lists = array();
@@ -1390,6 +1398,7 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns basic information about a list
 	 */
 	public function getListInfo() {
+		$this->authAdapter->requireReadRights();
 
 		/*var_dump($this->authAdapter->getUser());
 		var_dump($this->authAdapter->mayRead());
@@ -1401,6 +1410,7 @@ class Ezmlm implements EzmlmInterface {
 		$info['list_name'] = $this->listName;
 		$info['list_address'] = $this->listName . '@' . $this->domainName;
 		$info['lang'] = $this->getListLanguage();
+		$info['public'] = $this->isPublic();
 		$info['nb_threads'] = $this->countAllThreads();
 		$info['nb_messages'] = $this->countAllMessages();
 		$firstMessage = $this->readMessagesFromArchive(false, 1, 'asc');
@@ -1416,7 +1426,7 @@ class Ezmlm implements EzmlmInterface {
 	 */
 	protected function getListLanguage() {
 		$this->checkValidList();
-		// hardcoded default, as ezmlm doesn't allows to change the default language
+		// hardcoded default, as ezmlm doesn't allow to change the default language
 		$lang = "en";
 
 		$langFile = $this->listPath . '/conf-lang';
@@ -1429,11 +1439,22 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
+	 * Returns true if a list is public, ie. has a "public" file in its root
+	 * directory
+	 */
+	public function isPublic() {
+		$this->checkValidList();
+		$publicFile = $this->listPath . '/public';
+		return (file_exists($publicFile));
+	}
+
+	/**
 	 * Returns the "calendar" for a list : a summary of the number of messages
 	 * per month per year (glad the threads are sorted by month in the archive !)
 	 */
 	public function getListCalendar() {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$archiveFolder = $this->listPath . '/archive';
 		// grep messages dates amon all archive indexes - cannot be done with thread
 		// files cause although they are sorted by month, the number of messages
@@ -1462,6 +1483,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	public function addList($name, $options=null) {
+		$this->authAdapter->requireAdmin();
 		$this->checkValidDomain();
 		if ($this->listExists($name)) {
 			throw new Exception("list [$name] already exists");
@@ -1485,6 +1507,7 @@ class Ezmlm implements EzmlmInterface {
 	 */
 	public function deleteList() {
 		$this->checkValidList();
+		$this->authAdapter->requireAdmin();
 		$dotQmailFilesPrefix = $this->domainPath . '/.qmail-' . $this->listName;
 		// list of .qmail files @WARNING depends on the options set when creating the list
 		$dotQmailFiles = array(
@@ -1528,6 +1551,14 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	public function getSubscribers() {
+		$this->authAdapter->requireModerator();
+		return $this->doGetSubscribers();
+	}
+
+	/**
+	 * getSubscribers, but doesn't control rights (internal use)
+	 */
+	protected function doGetSubscribers() {
 		$this->checkValidList();
 		$command = "ezmlm-list";
 		$options = $this->listPath;
@@ -1538,6 +1569,14 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	public function getModerators() {
+		$this->authAdapter->requireAdmin();
+		return $this->doGetModerators();
+	}
+
+	/**
+	 * getModerators, but doesn't control rights (internal use)
+	 */
+	protected function doGetModerators() {
 		$this->checkValidList();
 		$ret = array();
 		$command = "ezmlm-list";
@@ -1552,7 +1591,16 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	public function getPosters() {
+		$this->authAdapter->requireModerator();
+		return $this->doGetPosters();
+	}
+
+	/**
+	 * getPosters, but doesn't control rights (internal use)
+	 */
+	protected function doGetPosters() {
 		$this->checkValidList();
+		$this->authAdapter->requireModerator();
 		$ret = array();
 		$command = "ezmlm-list";
 		$allowedFile = $this->listPath . '/allow';
@@ -1567,6 +1615,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function addSubscriber($subscriberEmail) {
 		$this->checkValidEmail($subscriberEmail);
+		$this->authAdapter->requireModerator();
 		$command = "ezmlm-sub";
 		$options = $this->listPath . ' ' . $subscriberEmail;
 		$ret = $this->rt($command, $options);
@@ -1575,6 +1624,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function deleteSubscriber($subscriberEmail) {
 		$this->checkValidEmail($subscriberEmail);
+		$this->authAdapter->requireModerator();
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . ' ' . $subscriberEmail;
 		$ret = $this->rt($command, $options);
@@ -1583,6 +1633,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function addModerator($moderatorEmail) {
 		$this->checkValidEmail($moderatorEmail);
+		$this->authAdapter->requireAdmin();
 		$command = "ezmlm-sub";
 		$options = $this->listPath . '/mod ' . $moderatorEmail;
 		$ret = $this->rt($command, $options);
@@ -1591,6 +1642,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function deleteModerator($moderatorEmail) {
 		$this->checkValidEmail($moderatorEmail);
+		$this->authAdapter->requireAdmin();
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . '/mod ' . $moderatorEmail;
 		$ret = $this->rt($command, $options);
@@ -1599,6 +1651,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function addPoster($posterEmail) {
 		$this->checkValidEmail($posterEmail);
+		$this->authAdapter->requireModerator();
 		$command = "ezmlm-sub";
 		$options = $this->listPath . '/allow ' . $posterEmail;
 		$ret = $this->rt($command, $options);
@@ -1607,6 +1660,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function deletePoster($posterEmail) {
 		$this->checkValidEmail($posterEmail);
+		$this->authAdapter->requireModerator();
 		$command = "ezmlm-unsub";
 		$options = $this->listPath . '/allow ' . $posterEmail;
 		$ret = $this->rt($command, $options);
@@ -1619,6 +1673,8 @@ class Ezmlm implements EzmlmInterface {
 	 * authentication)
 	 */
 	public function sendMessage($data, $threadHash=null) {
+		$this->authAdapter->requirePostRights();
+
 		$mail = new PHPMailer();
 
 		$user = $this->authAdapter->getUser();
@@ -1714,12 +1770,14 @@ class Ezmlm implements EzmlmInterface {
 
 	public function countAllMessages() {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$nb = $this->countMessagesFromArchive();
 		return $nb;
 	}
 
 	public function getAllMessages($contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$msgs = $this->readMessagesFromArchive($contents, $limit, $sort, $offset);
 		$nbMsgs = $this->countAllMessages(); // harmonizing return format @WARNING sub-optimal
 		return array(
@@ -1730,66 +1788,77 @@ class Ezmlm implements EzmlmInterface {
 
 	public function getMessagesByDate($datePortion, $contents=false, $limit=false, $sort='desc', $offset=0) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$threads = $this->readMessagesByDate($datePortion, $contents, $limit, $sort, $offset);
 		return $threads;
 	}
 
 	public function getLatestMessages($contents=false, $limit=10, $sort='desc') {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$msgs = $this->readMessagesFromArchive($contents, $limit, $sort);
 		return $msgs;
 	}
 
 	public function searchMessages($pattern, $contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$msgs = $this->searchMessagesInArchive($pattern, $contents, $sort, $offset, $limit);
 		return $msgs;
 	}
 
 	public function getMessage($id, $contents=true) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$msg = $this->readMessage($id, $contents, false);
 		return $msg;
 	}
 
 	public function getAttachmentPath($messageId, $attachmentName) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$path = $this->getMessageAttachmentPath($messageId, $attachmentName);
 		return $path;
 	}
 
 	public function getAllThreads($pattern=false, $limit=false, $details=false, $sort='desc', $offset=0) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$threads = $this->readThreadsFromArchive($pattern, $limit, $details, $sort, $offset);
 		return $threads;
 	}
 
 	public function getThreadsByDate($datePortion, $limit=false, $details=false, $sort='desc', $offset=0) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$threads = $this->readThreadsByDate($datePortion, $limit, $details, $sort, $offset);
 		return $threads;
 	}
 
 	public function countAllThreads() {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$nb = $this->countThreadsFromArchive();
 		return $nb;
 	}
 
 	public function getLatestThreads($limit=10, $details=false) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$threads = $this->readThreadsFromArchive(false, $limit, $details);
 		return $threads;
 	}
 
 	public function getThread($hash, $details=true) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$thread = $this->readThread($hash, $details);
 		return $thread;
 	}
 
 	public function getAllMessagesByThread($hash, $pattern=false, $contents=false, $sort='desc', $offset=0, $limit=false) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		// if searching is required, message contents will have to be extracted to search among it
 		$callTimeContents = $contents;
 		if ($pattern !== false) {
@@ -1811,12 +1880,14 @@ class Ezmlm implements EzmlmInterface {
 
 	public function getLatestMessagesByThread($hash, $limit=10, $contents=false, $sort='desc') {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$messages = $this->readThreadsMessages($hash, false, $contents, $limit, $sort);
 		return $messages;
 	}
 
 	public function countMessagesFromThread($hash) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$thread = $this->readThread($hash);
 		$nb = $thread["nb_messages"];
 		return $nb;
@@ -1824,6 +1895,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function getPreviousMessageByThread($hash, $id, $contents=true) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$ids = $this->getThreadsMessagesIds($hash);
 		$key = array_search($id, $ids);
 		if ($key === false) {
@@ -1840,6 +1912,7 @@ class Ezmlm implements EzmlmInterface {
 
 	public function getNextMessageByThread($hash, $id, $contents=true) {
 		$this->checkValidList();
+		$this->authAdapter->requireReadRights();
 		$ids = $this->getThreadsMessagesIds($hash);
 		$key = array_search($id, $ids);
 		if ($key === false) {
@@ -1856,11 +1929,11 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Returns all the lists the current user is moderator of
-	 * @TODO admin or same user only
 	 */
 	public function getListsUserIsModeratorOf($userEmail) {
+		$this->authAdapter->requireUser($userEmail);
 		$listsUserIsModeratorOf = array();
-		$lists = $this->getLists();
+		$lists = $this->doGetLists();
 		foreach($lists as $list) {
 			if ($this->userIsModeratorOf($userEmail, $list)) {
 				$listsUserIsModeratorOf[] = $list;
@@ -1871,12 +1944,12 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Returns true if the current user is moderator of the list $listName
-	 * @TODO admin or same user only
 	 */
 	public function userIsModeratorOf($userEmail, $listName) {
+		$this->authAdapter->requireUser($userEmail);
 		$ret = false;
 		$this->setListName($listName);
-		$listModerators = $this->getModerators();
+		$listModerators = $this->doGetModerators();
 		if ($listModerators != null) {
 			$ret = in_array($userEmail, $listModerators);
 		}
@@ -1885,11 +1958,11 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Returns all the lists the current user is subscriber of
-	 * @TODO admin or same user only
 	 */
 	public function getListsUserIsSubscriberOf($userEmail) {
+		$this->authAdapter->requireUser($userEmail);
 		$listsUserIsSubscriberOf = array();
-		$lists = $this->getLists();
+		$lists = $this->doGetLists();
 		foreach($lists as $list) {
 			if ($this->userIsSubscriberOf($userEmail, $list)) {
 				$listsUserIsSubscriberOf[] = $list;
@@ -1900,12 +1973,12 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Returns true if the current user is subscriber of the list $listName
-	 * @TODO admin or same user only
 	 */
 	public function userIsSubscriberOf($userEmail, $listName) {
+		$this->authAdapter->requireUser($userEmail);
 		$ret = false;
 		$this->setListName($listName);
-		$listSubscribers = $this->getSubscribers();
+		$listSubscribers = $this->doGetSubscribers();
 		if ($listSubscribers != null) {
 			$ret = in_array($userEmail, $listSubscribers);
 		}
@@ -1917,8 +1990,9 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function getListsUserIsAllowedIn($userEmail) {
+		$this->authAdapter->requireUser($userEmail);
 		$listsUserIsAllowedIn = array();
-		$lists = $this->getLists();
+		$lists = $this->doGetLists();
 		foreach($lists as $list) {
 			if ($this->userIsAllowedIn($userEmail, $list)) {
 				$listsUserIsAllowedIn[] = $list;
@@ -1932,9 +2006,10 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function userIsAllowedIn($userEmail, $listName) {
+		$this->authAdapter->requireUser($userEmail);
 		$ret = false;
 		$this->setListName($listName);
-		$listAllowed = $this->getPosters();
+		$listAllowed = $this->doGetPosters();
 		if ($listAllowed != null) {
 			$ret = in_array($userEmail, $listAllowed);
 		}
