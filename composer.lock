@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "aefcc8b6ca1b411ec54948b2b6d0fdc8",
-    "content-hash": "001c4e58f13fed631d6485f2f491ff4b",
+    "hash": "64c68a8e43b1f508a9070c52c81f8dec",
+    "content-hash": "6b0ecdcef5f50e86afc2c8b57e4d1d7e",
     "packages": [
         {
             "name": "php-mime-mail-parser/php-mime-mail-parser",
@@ -148,12 +148,52 @@
             ],
             "description": "PHPMailer is a full-featured email creation and transfer class for PHP",
             "time": "2015-11-01 10:15:28"
+        },
+        {
+            "name": "telabotanica/tb-auth-php",
+            "version": "0.1a",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/telabotanica/tb-auth-php.git",
+                "reference": "8899c5779dae18cab73df9a4d7750eb68d15a00f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/8899c5779dae18cab73df9a4d7750eb68d15a00f",
+                "reference": "8899c5779dae18cab73df9a4d7750eb68d15a00f",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3.0"
+            },
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPLv3"
+            ],
+            "authors": [
+                {
+                    "name": "Mathias Chouet",
+                    "email": "mathias@tela-botanica.org"
+                }
+            ],
+            "description": "A library that helps integrating your PHP software with Tela Botanica's SSO",
+            "homepage": "https://github.com/telabotanica/tb-auth-php",
+            "keywords": [
+                "SSO",
+                "tela botanica",
+                "tela-botanica",
+                "telabotanica"
+            ],
+            "time": "2016-03-08 16:40:39"
         }
     ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "telabotanica/tb-auth-php": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],
