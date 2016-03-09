@@ -10,13 +10,14 @@
 		"grepBinary": "/bin/grep",
 		"findBinary": "/usr/bin/find"
 	},
-	"authAdapter": "AuthTB",
+	"authAdapter": "AuthProxyTB",
 	"adapters": {
-		"AuthTB": {
-			"AnnuaireURL": "https://localhost/service:annuaire:auth",
+		"AuthProxyTB": {
+			"annuaireURL": "https://localhost/service:annuaire:auth",
 			"admins": [
 				"john@mywebsite.org"
-			]
+			],
+			"ignoreSSLIssues": false
 		}
 	},
 	"settings": {

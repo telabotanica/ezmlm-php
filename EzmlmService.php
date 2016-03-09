@@ -355,7 +355,7 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 		// "count" switch ?
 		$count = ($this->getParam('count') !== null);
 		//echo "getAllowed(); count : "; var_dump($count);
-		$res = $this->lib->getAllowed($count);
+		$res = $this->lib->getPosters($count);
 		if ($count) {
 			$this->sendJson(count($res)); // bare number
 		} else {

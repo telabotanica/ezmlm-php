@@ -16,7 +16,7 @@ class Ezmlm implements EzmlmInterface {
 	/** ezmlm-idx tools path */
 	protected $ezmlmIdxPath;
 
-	/** Authentication management */
+	/** Authentication management - must implement interface AuthAdapter */
 	protected $authAdapter;
 
 	/** absolute path of domains root (eg vpopmail's "domains" folder) */
@@ -100,8 +100,8 @@ class Ezmlm implements EzmlmInterface {
 				throw new Exception ("auth adapter " . $authAdapterPath . " doesn't exist");
 			}
 			require $authAdapterPath;
-			// passing config to the adapter - 
-			$this->authAdapter = new $authAdapterName($this->config);
+			// always passing self and config to the auth adapter
+			$this->authAdapter = new $authAdapterName($this, $this->config['adapters'][$authAdapterName]);
 		}
 
 		// domains path
@@ -1390,6 +1390,13 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns basic information about a list
 	 */
 	public function getListInfo() {
+
+		/*var_dump($this->authAdapter->getUser());
+		var_dump($this->authAdapter->mayRead());
+		var_dump($this->authAdapter->mayPost());
+		var_dump($this->authAdapter->isModerator());
+		var_dump($this->authAdapter->isAdmin());*/
+
 		$info = array();
 		$info['list_name'] = $this->listName;
 		$info['list_address'] = $this->listName . '@' . $this->domainName;
