@@ -1600,7 +1600,6 @@ class Ezmlm implements EzmlmInterface {
 	 */
 	protected function doGetPosters() {
 		$this->checkValidList();
-		$this->authAdapter->requireModerator();
 		$ret = array();
 		$command = "ezmlm-list";
 		$allowedFile = $this->listPath . '/allow';

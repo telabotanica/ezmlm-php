@@ -59,7 +59,17 @@ class AuthProxyTB extends AuthAdapter /* required through Composer */ {
 		return $this->sso->isAdmin();
 	}
 
+	/* -------------------------- proxy methods ----------------------------- */
+
 	public function getUser() {
 		return $this->sso->getUser();
+	}
+
+	public function getUserEmail() {
+		return $this->sso->getUserEmail();
+	}
+
+	public function getUserFullName() {
+		return $this->sso->getUserFullName();
 	}
 }
