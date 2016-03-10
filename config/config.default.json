@@ -17,7 +17,8 @@
 			"admins": [
 				"john@mywebsite.org"
 			],
-			"ignoreSSLIssues": false
+			"ignoreSSLIssues": false,
+			"headerName": "Authorization"
 		}
 	},
 	"settings": {
