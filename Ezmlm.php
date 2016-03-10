@@ -1495,11 +1495,11 @@ class Ezmlm implements EzmlmInterface {
 		// -a : archive the list
 		// -B : archives are open to everyone
 		// -d : enable digest
+		// -f : add list name as a prefix to outgoing messages subject
 		// -i : index archives
-		// -l : enable list of subscribers
 		// -p : public
 		// -u : only subscribers and people in allowed list have the right to post
-		$defaultOptions = "aBdilpu";
+		$defaultOptions = "aBdfipu";
 		if ($options === null) { // empty switches list is allowed, but null means default
 			$options = $defaultOptions;
 		}
