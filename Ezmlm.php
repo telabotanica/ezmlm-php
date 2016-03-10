@@ -1500,7 +1500,7 @@ class Ezmlm implements EzmlmInterface {
 		// -p : public
 		// -u : only subscribers and people in allowed list have the right to post
 		$defaultOptions = "aBdilpu";
-		if ($options !== null) { // empty switches list is allowed, null means default
+		if ($options === null) { // empty switches list is allowed, but null means default
 			$options = $defaultOptions;
 		}
 		// convert options string (ex: "aBuD") to command switches (ex: "-a -B -u -D")
