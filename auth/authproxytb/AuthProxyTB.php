@@ -1,9 +1,9 @@
 <?php
 
-require_once 'auth/AuthAdapter.php';
-
 /**
  * A simple extension of AuthAdapter using Tela Botanica's SSO service
+ * 
+ * @TODO see TODO in AuthAdapter.php
  */
 class AuthProxyTB extends AuthAdapter /* required through Composer */ {
 

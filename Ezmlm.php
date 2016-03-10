@@ -1,6 +1,7 @@
 <?php
 
 require_once 'EzmlmInterface.php';
+require_once 'auth/AuthAdapter.php';
 // composer
 require_once 'vendor/autoload.php';
 
@@ -90,7 +91,7 @@ class Ezmlm implements EzmlmInterface {
 		$this->ezmlmIdxPath = $this->config['ezmlm-idx']['binariesPath'];
 
 		// authentication adapter / rights management
-		$this->authAdapter = null;
+		$this->authAdapter = new AuthAdapter(); // default dummy adapter
 		// rights management is not mandatory
 		if (! empty($this->config['authAdapter'])) {
 			$authAdapterName = $this->config['authAdapter'];
@@ -1673,14 +1674,8 @@ class Ezmlm implements EzmlmInterface {
 	 */
 	public function sendMessage($data, $threadHash=null) {
 		$this->authAdapter->requirePostRights();
-
-		$mail = new PHPMailer();
-
-		$user = $this->authAdapter->getUser();
-		//var_dump($user);
-		if ($user == null) {
-			throw new Exception('you must be logged in to post messages');
-		}
+		$mail = new PHPMailer(); // c'est bien prââtique
+		//$user = $this->authAdapter->getUser();
 
 		// info needed :
 		// 1) from (logged-in person's email address + alias)
@@ -1690,7 +1685,7 @@ class Ezmlm implements EzmlmInterface {
 			$from = $data['from'];
 			// identity usurpation ? check rights !
 			if ($authFrom != $from && ! $this->authAdapter->isAdmin()) {
-				throw new Exception("thou shall not usurpate your neighbour's identity unless you are The Admin");
+				throw new Exception("thou shalt not usurpate your neighbour's identity unless you are The Admin");
 			}
 		}
 		$authFromAlias = $this->authAdapter->getUserFullName();
@@ -1698,8 +1693,8 @@ class Ezmlm implements EzmlmInterface {
 		if (isset($data['from_alias'])) {
 			$fromAlias = $data['from_alias'];
 			// identity usurpation ? check rights !
-			if ($authFrom != $fromAlias && ! $this->authAdapter->isAdmin()) {
-				throw new Exception("thou shall not misspel your neighbour's name unless you are The Admin");
+			if ($authFromAlias != $fromAlias && ! $this->authAdapter->isAdmin()) {
+				throw new Exception("thou shalt not misspel your name unless you are The Admin");
 			}
 		}
 
@@ -1720,19 +1715,42 @@ class Ezmlm implements EzmlmInterface {
 			throw new Exception("please provide either a threadHash parameter or a 'subject' field in JSON data");
 		}
 
-		// 4) attachments (base64 from POST data)
+		// 4) message body and preferred format
+		// @TODO check that at least one is mentioned; convert to the other in
+		// such a case
+		$bodyText = $data['body'];
+		$bodyHTML = $data['body_text'];
+		$useHTML = true;
+		if (isset($data['html']) && $data['html'] === false) {
+			$useHTML = false;
+		}
 
-		// - format (HTML)
-		// - body (HTML + text)
-		
+		// 5) attachments (base64 from POST data)
+		if (isset($data['attachments']) && is_array($data['attachments'])) {
+			foreach ($data['attachments'] as $attch) {
+				if (empty($attch['name']) || empty($attch['data'])) {
+					throw new Exception('malformed attachment: "name" and/or "data" are missing or empty');
+				}
+				$mimetype = ''; // mimetype is detected by PHPMailer
+				if (! empty($attch['mimetype'])) {
+					$mimetype = $attch['mimetype'];
+				}
+				$mail->AddStringAttachment($attch['data'], $attch['name'], 'base64', $mimetype);
+			}
+		}
+
 		// RECAP !
 		echo "FROM: $from\n";
 		echo "FROM ALIAS: $fromAlias\n";
 		echo "TO: $to\n";
 		echo "TO ALIAS: $toAlias\n";
 		echo "SUBJECT: $subject\n";
+		echo "BODY (text): $bodyText\n";
+		echo "BODY (html): $bodyHTML\n";
+		echo "ATTACHMENTS: "; var_dump($mail->getAttachments()); echo "\n";
 		exit;
 
+		// @TODO put SMTP parameters in config file
 		//$mail->SMTPDebug = 3;                               // Enable verbose debug output
 		//$mail->isSMTP();                                      // Set mailer to use SMTP
 		//$mail->Host = 'smtp1.example.com;smtp2.example.com';  // Specify main and backup SMTP servers
@@ -1742,24 +1760,17 @@ class Ezmlm implements EzmlmInterface {
 		//$mail->SMTPSecure = 'tls';                            // Enable TLS encryption, `ssl` also accepted
 		//$mail->Port = 587;                                    // TCP port to connect to
 
-		$mail->setFrom('from@example.com', 'Mailer');
-		$mail->addAddress('joe@example.net', 'Joe User');     // Add a recipient
-		$mail->addAddress('ellen@example.com');               // Name is optional
-		$mail->addReplyTo('info@example.com', 'Information');
-		$mail->addCC('cc@example.com');
-		$mail->addBCC('bcc@example.com');
+		$mail->setFrom($from, $fromAlias);
+		$mail->addAddress($to, $toAlias);
+		// $mail->addReplyTo('info@example.com', 'Information'); // automatic, set in list config at creation time
+		$mail->Subject = $subject;
+		$mail->Body    = $bodyHTML;
+		$mail->AltBody = $bodyText;
+		$mail->isHTML($useHTML);
+		$mail->setLanguage('fr'); // ?
 
-		$mail->addAttachment('/var/tmp/file.tar.gz');         // Add attachments
-		$mail->addAttachment('/tmp/image.jpg', 'new.jpg');    // Optional name
-		$mail->isHTML(true);                                  // Set email format to HTML
 
-		$mail->setLanguage('fr');
-
-		$mail->Subject = 'Here is the subject';
-		$mail->Body    = 'This is the HTML message body <b>in bold!</b>';
-		$mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
-
-		if(!$mail->send()) {
+		if(! $mail->send()) {
 			echo 'Message could not be sent.';
 			echo 'Mailer Error: ' . $mail->ErrorInfo;
 		} else {

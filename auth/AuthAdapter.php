@@ -1,43 +1,62 @@
 <?php
 
 /**
- * Simple abstract class for rights management
+ * Simple default class for rights management - you must extend it with your
+ * own class, otherwise the rights management will be disabled (see default
+ * return values for methods below)
+ * 
+ * @TODO all the mechanisms in AuthProxyTb could be factorized here; the only
+ * external values needed are :
+ * - is there a current logged-in user and who is (s)he ?
+ * - the current user's email address
  */
-abstract class AuthAdapter {
+class AuthAdapter {
 
 	/**
 	 * must return true if the current user has "read" rights on the current
 	 * list, false otherwise
 	 */
-	public abstract function mayRead();
+	public function mayRead() {
+		return true; // rights management disabled by default
+	}
 
 	/**
 	 * must return true if the current user has "post" (write) rights on the
 	 * current list, false otherwise
 	 */
-	public abstract function mayPost();
+	public function mayPost() {
+		return true; // rights management disabled by default
+	}
 
 	/**
 	 * must return true if the current user is a moderator of the current list,
 	 * false otherwise
 	 */
-	public abstract function isModerator();
+	public function isModerator() {
+		return true; // rights management disabled by default
+	}
 
 	/**
 	 * must return true if the current user is "administrator", false otherwise
 	 */
-	public abstract function isAdmin();
+	public function isAdmin() {
+		return true; // rights management disabled by default
+	}
 
 	/**
 	 * must return a representation of the current user
 	 */
-	public abstract function getUser();
+	public function getUser() {
+		return null; // rights management disabled by default
+	}
 
 	/**
 	 * must return true if the email address of the current user is equal to
 	 * the specified $userEmail
 	 */
-	public abstract function isCurrentUser($userEmail);
+	public function isCurrentUser($userEmail) {
+		return true; // rights management disabled by default
+	}
 
 	/**
 	 * throws an exception if the current user has no "read" rights
