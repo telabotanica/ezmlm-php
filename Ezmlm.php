@@ -503,8 +503,8 @@ class Ezmlm implements EzmlmInterface {
 	 */
 	protected function countMessagesFromArchive() {
 		$numFile = $this->listPath . '/num';
-		if (! file_exists($numFile)) {
-			throw new Exception('list has no num file');
+		if (! file_exists($numFile)) { // should mean the list is brand new
+			return 0;
 		}
 		$num = file_get_contents($numFile);
 		$num = explode(':', $num);
@@ -993,6 +993,15 @@ class Ezmlm implements EzmlmInterface {
 		$pattern = $this->convertPatternForPreg($pattern);
 		// read all threads files in chronological order
 		$threadsFolder = $this->listPath . '/archive/threads';
+
+		// in case a list has no messages yet
+		if (!file_exists($threadsFolder)) {
+			return array(
+				"total" => 0,
+				"data" => array()
+			);
+		}
+
 		$threadFiles = scandir($threadsFolder);
 		array_shift($threadFiles); // remove "."
 		array_shift($threadFiles); // remove ".."
