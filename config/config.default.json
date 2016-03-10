@@ -10,7 +10,7 @@
 		"grepBinary": "/bin/grep",
 		"findBinary": "/usr/bin/find"
 	},
-	"authAdapter": "AuthProxyTB",
+	"authAdapter": "",
 	"adapters": {
 		"AuthProxyTB": {
 			"annuaireURL": "https://localhost/service:annuaire:auth",
@@ -23,6 +23,16 @@
 	"settings": {
 		"maxMessagesWithContentsReadableAtOnce": 100,
 		"messageAbstractSize": 64
+	},
+	"sendMode": "mail",
+	"smtp": {
+		"host": "localhost",
+		"port": 25,
+		"auth": false,
+		"user": "",
+		"password": "",
+		"secure": "tls",
+		"debug": 3
 	},
 	"cache": {
 		"path": "/tmp/ezmlm-php"

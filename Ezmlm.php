@@ -1697,12 +1697,15 @@ class Ezmlm implements EzmlmInterface {
 				throw new Exception("thou shalt not misspel your name unless you are The Admin");
 			}
 		}
+		$mail->setFrom($from, $fromAlias);
 
 		// 2) to (list address + alias)
 		$listInfo = $this->getListInfo();
 		//var_dump($listInfo);
 		$to = $listInfo['list_address'];
 		$toAlias = $listInfo['list_name'];
+		$mail->addAddress($to, $toAlias);
+		// $mail->addReplyTo('info@example.com', 'Information'); // automatic, set in list config at creation time
 
 		// 3) subject (new or read from subjectHash)
 		if ($threadHash != "") {
@@ -1714,6 +1717,7 @@ class Ezmlm implements EzmlmInterface {
 		} else {
 			throw new Exception("please provide either a threadHash parameter or a 'subject' field in JSON data");
 		}
+		$mail->Subject = $subject;
 
 		// 4) message body and preferred format
 		// @TODO check that at least one is mentioned; convert to the other in
@@ -1724,6 +1728,9 @@ class Ezmlm implements EzmlmInterface {
 		if (isset($data['html']) && $data['html'] === false) {
 			$useHTML = false;
 		}
+		$mail->Body = $bodyHTML;
+		$mail->AltBody = $bodyText;
+		$mail->isHTML($useHTML);
 
 		// 5) attachments (base64 from POST data)
 		if (isset($data['attachments']) && is_array($data['attachments'])) {
@@ -1739,8 +1746,46 @@ class Ezmlm implements EzmlmInterface {
 			}
 		}
 
+		// 6) mail sending parameters
+		$sendMode = "mail";
+		if (! empty($this->config['sendMode'])) {
+			$sendMode = $this->config['sendMode'];
+		}
+		if ($sendMode == "mail") {
+			$mail->isMail();
+		} elseif ($sendMode == "qmail") {
+			$mail->isQmail();
+		} elseif ($sendMode == "sendmail") {
+			$mail->isSendmail();
+		} elseif ($sendMode == "smtp") {
+			$mail->isSMTP();
+			// default SMTP config
+			$smtpConfig = array(
+				"host" => "localhost",
+				"port" => 25,
+				"auth" => false,
+				"user" => "",
+				"password" => "",
+				"secure" => "tls",
+				"debug" => 3
+			);
+			if (isset($this->config['smtp']) && is_array($this->config['smtp'])) {
+				// merge with priority to config file
+				$smtpConfig = array_merge($smtpConfig, $this->config['smtp']);
+			}
+			$mail->Host = $smtpConfig['host'];
+			$mail->Port = $smtpConfig['port'];
+			$mail->SMTPAuth = $smtpConfig['auth'];
+			$mail->Username = $smtpConfig['user'];
+			$mail->Password = $smtpConfig['password'];
+			$mail->SMTPSecure = $smtpConfig['secure'];
+			$mail->SMTPDebug = $smtpConfig['debug'];
+		}
+
+		$mail->setLanguage('fr'); // ?
+
 		// RECAP !
-		echo "FROM: $from\n";
+		/*echo "FROM: $from\n";
 		echo "FROM ALIAS: $fromAlias\n";
 		echo "TO: $to\n";
 		echo "TO ALIAS: $toAlias\n";
@@ -1748,34 +1793,12 @@ class Ezmlm implements EzmlmInterface {
 		echo "BODY (text): $bodyText\n";
 		echo "BODY (html): $bodyHTML\n";
 		echo "ATTACHMENTS: "; var_dump($mail->getAttachments()); echo "\n";
-		exit;
-
-		// @TODO put SMTP parameters in config file
-		//$mail->SMTPDebug = 3;                               // Enable verbose debug output
-		//$mail->isSMTP();                                      // Set mailer to use SMTP
-		//$mail->Host = 'smtp1.example.com;smtp2.example.com';  // Specify main and backup SMTP servers
-		//$mail->SMTPAuth = true;                               // Enable SMTP authentication
-		//$mail->Username = 'user@example.com';                 // SMTP username
-		//$mail->Password = 'secret';                           // SMTP password
-		//$mail->SMTPSecure = 'tls';                            // Enable TLS encryption, `ssl` also accepted
-		//$mail->Port = 587;                                    // TCP port to connect to
-
-		$mail->setFrom($from, $fromAlias);
-		$mail->addAddress($to, $toAlias);
-		// $mail->addReplyTo('info@example.com', 'Information'); // automatic, set in list config at creation time
-		$mail->Subject = $subject;
-		$mail->Body    = $bodyHTML;
-		$mail->AltBody = $bodyText;
-		$mail->isHTML($useHTML);
-		$mail->setLanguage('fr'); // ?
-
+		echo "SEND MODE: $sendMode\n";*/
 
 		if(! $mail->send()) {
-			echo 'Message could not be sent.';
-			echo 'Mailer Error: ' . $mail->ErrorInfo;
-		} else {
-			echo 'Message has been sent';
+			throw new Exception('PHPMailer Error: ' . $mail->ErrorInfo);
 		}
+		return true;
 	}
 
 	public function countAllMessages() {
