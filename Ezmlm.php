@@ -1491,6 +1491,18 @@ class Ezmlm implements EzmlmInterface {
 		} else {
 			$this->setListName($name);
 		}
+		// default switches :
+		// -a : archive the list
+		// -B : archives are open to everyone
+		// -d : enable digest
+		// -i : index archives
+		// -l : enable list of subscribers
+		// -p : public
+		// -u : only subscribers and people in allowed list have the right to post
+		$defaultOptions = "aBdilpu";
+		if ($options !== null) { // empty switches list is allowed, null means default
+			$options = $defaultOptions;
+		}
 		// convert options string (ex: "aBuD") to command switches (ex: "-a -B -u -D")
 		$switches = $this->getSwitches($options);
 		$dotQmailFile = $this->domainPath . '/.qmail-' . $this->listName;

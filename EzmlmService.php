@@ -944,7 +944,7 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 		if ($ret === true) {
 			$this->sendJson(array(
 				"list" => $data['name'],
-				"options" => $options,
+				"options" => ($options !== null ? $options : "default"),
 				"created" => true
 			));
 		} else {
