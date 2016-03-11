@@ -1141,6 +1141,6 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	protected function options() {
-		$this->sendError("OPTIONS is not supported at the moment", 405);
+		// don'r send any error here or it will break CORS preflight requests
 	}
 }
