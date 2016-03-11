@@ -2076,4 +2076,23 @@ class Ezmlm implements EzmlmInterface {
 		}
 		return $ret;
 	}
+
+	public function getListUserInfo($userEmail) {
+		$this->checkValidList();
+		$this->authAdapter->requireUser($userEmail);
+		$ret = array(
+			"rights" => array(
+				// @WARNING if an admin is authorized to get user information,
+				// calling authAdapter for rights will give the admin's rights
+				// and not the required user's ones
+				"read" => $this->authAdapter->mayRead(),
+				"post" => $this->authAdapter->mayPost(),
+				"moderator" => $this->authAdapter->isModerator(),
+				"admin" => $this->authAdapter->isAdmin()
+			)
+		);
+		// rights
+		// @TODO stats (first message + date, last message + date, nb messages)
+		return $ret;
+	}
 }

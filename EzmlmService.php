@@ -167,8 +167,8 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 								case 'threads':
 									$this->getByThreads();
 									break;
-								case 'authors':
-									$this->getByAuthors();
+								case 'users':
+									$this->getByListUsers();
 									break;
 								case 'messages':
 									$this->getByMessages();
@@ -607,21 +607,21 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	/**
-	 * Entry point for /lists/X/authors/* URIs
+	 * Entry point for /lists/X/users/* URIs
 	 */
-	protected function getByAuthors() {
+	protected function getByListUsers() {
 		// no more resources ?
 		if (count($this->resources) == 0) {
-			// list all authors in a list (having written at least once)
+			// list all users in a list (having written at least once)
 			// "count" switch ?
 			$count = ($this->getParam('count') !== null);
-			$this->getAllAuthors($count);
+			$this->getAllListUsers($count);
 		} else {
-			// storing author's email
-			$authorEmail = array_shift($this->resources);
+			// storing user's email
+			$userEmail = array_shift($this->resources);
 			// no more resoures ?
 			if (count($this->resources) == 0) {
-				$this->getAuthorInfo();
+				$this->getListUserInfo($userEmail);
 			} else {
 				$nextResource = array_shift($this->resources);
 				switch ($nextResource) {
@@ -639,20 +639,23 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 		}
 	}
 
-	protected function getAllAuthors() {
-		echo "getAllAuthors()";
+	protected function getAllListUsers() {
+		$this->sendError('Not implemented');
 	}
 
-	protected function getAuthorInfo() {
-		echo "getAuthorInfo()";
+	protected function getListUserInfo($userEmail) {
+		$info = $this->lib->getListUserInfo($userEmail);
+		$this->sendJson($info);
 	}
 
 	protected function getThreadsByAuthor() {
 		// @TODO detect /latest et ?count
+		$this->sendError('Not implemented');
 	}
 
 	protected function getMessagesByAuthor() {
 		// @TODO detect /latest, /search, /id/(next|previous) et ?count
+		$this->sendError('Not implemented');
 	}
 
 	/**
