@@ -1741,10 +1741,15 @@ class Ezmlm implements EzmlmInterface {
 		$mail->Subject = $subject;
 
 		// 4) message body and preferred format
-		// @TODO check that at least one is mentioned; convert to the other in
-		// such a case
-		$bodyText = $data['body'];
-		$bodyHTML = $data['body_text'];
+		$bodyText = '';
+		$bodyHTML = '';
+		if (! empty($data['body'])) {
+			$bodyHTML = $data['body'];
+		}
+		if (! empty($data['body_text'])) {
+			$bodyText = $data['body_text'];
+		}
+		// @TODO convert one format to another in case only one is given
 		$useHTML = true;
 		if (isset($data['html']) && $data['html'] === false) {
 			$useHTML = false;
@@ -1803,6 +1808,8 @@ class Ezmlm implements EzmlmInterface {
 			$mail->SMTPDebug = $smtpConfig['debug'];
 		}
 
+		$mail->CharSet = 'UTF-8';
+		$mail->Encoding = "base64";
 		$mail->setLanguage('fr'); // ?
 
 		// RECAP !
