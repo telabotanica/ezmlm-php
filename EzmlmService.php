@@ -1137,10 +1137,10 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	}
 
 	protected function deleteMessage() {
-		echo "deleteMessage()";
+		$this->sendError('Not implemented');
 	}
 
 	protected function options() {
-		// don'r send any error here or it will break CORS preflight requests
+		// don't send any error here or it will break CORS preflight requests
 	}
 }
