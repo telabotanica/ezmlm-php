@@ -1009,8 +1009,8 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	protected function sendMessage($data, $threadHash=null) {
 		//echo "sendMessage: [$threadHash]";
 		//var_dump($data);
-		if (empty($data['body'])) {
-			$this->sendError("missing 'body' in JSON data");
+		if (empty($data['body']) && empty($data['body_text'])) {
+			$this->sendError("missing 'body' or 'body_text' in JSON data");
 		}
 		if ($threadHash == "" && empty($data['subject'])) {
 			$this->sendError("please provide either a threadHash parameter or a 'subject' field in JSON data");
