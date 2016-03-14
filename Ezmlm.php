@@ -784,7 +784,7 @@ class Ezmlm implements EzmlmInterface {
 		list($subfolder, $messageid) = $this->computeSubfolderAndId($id);
 		$indexPath = $this->listPath . '/archive/' . $subfolder . '/index';
 		// sioux trick to get the 2 lines concerning the message
-		$grep = $this->grepBinary . ' "' . $id . ': " "' . $indexPath . '" --no-group-separator -A 1';
+		$grep = $this->grepBinary . ' "^' . $id . ': " "' . $indexPath . '" --no-group-separator -A 1';
 		exec($grep, $lines);
 
 		// in case messge was not found in the archive (might happen)
