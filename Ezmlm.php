@@ -1809,7 +1809,7 @@ class Ezmlm implements EzmlmInterface {
 		}
 
 		$mail->CharSet = 'UTF-8';
-		$mail->Encoding = "base64";
+		//$mail->Encoding = "base64"; // @WARNING breaks full text search in archives
 		$mail->setLanguage('fr'); // ?
 
 		// RECAP !
