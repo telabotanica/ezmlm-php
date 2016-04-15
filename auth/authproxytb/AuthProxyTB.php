@@ -5,7 +5,7 @@
  * 
  * @TODO see TODO in AuthAdapter.php
  */
-class AuthProxyTB extends AuthAdapter /* required through Composer */ {
+class AuthProxyTB extends AuthAdapter {
 
 	protected $lib;
 	protected $sso;
