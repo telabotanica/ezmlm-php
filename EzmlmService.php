@@ -1,16 +1,18 @@
 <?php
 
-require_once 'BaseService.php';
 require_once 'Ezmlm.php';
 require_once 'EzmlmInterface.php';
 
 /**
  * REST API to access an ezmlm list
  */
-class EzmlmService extends BaseService implements EzmlmInterface {
+class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 
 	/** JSON Autodocumentation */
 	public static $AUTODOC_PATH = "autodoc.json";
+
+	/** JSON service configuration */
+	public static $CONFIG_PATH = "config/service.json";
 
 	/** Ezmlm lib */
 	protected $lib;
@@ -25,7 +27,15 @@ class EzmlmService extends BaseService implements EzmlmInterface {
 	protected $defaultThreadsLimit;
 
 	public function __construct() {
-		parent::__construct();
+		// config
+		$config = null;
+		if (file_exists(self::$CONFIG_PATH)) {
+			$config = json_decode(file_get_contents(self::$CONFIG_PATH), true);
+		} else {
+			throw new Exception("file " . self::$CHEMIN_CONFIG . " doesn't exist");
+		}
+
+		parent::__construct($config);
 		// Ezmlm lib
 		$this->lib = new Ezmlm();
 
