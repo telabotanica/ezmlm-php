@@ -39,6 +39,10 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 		// Ezmlm lib
 		$this->lib = new Ezmlm();
 
+		// ne pas indexer - placé ici pour simplifier l'utilisation avec nginx
+		// (pas de .htaccess)
+		header("X-Robots-Tag: noindex, nofollow", true);
+
 		// additional settings
 		$this->defaultMessagesLimit = $this->config['settings']['defaultMessagesLimit'];
 		$this->defaultThreadsLimit = $this->config['settings']['defaultThreadsLimit'];
