@@ -1604,7 +1604,7 @@ class Ezmlm implements EzmlmInterface {
 		$command = "ezmlm-list";
 		$modFile = $this->listPath . '/mod';
 		if (file_exists($modFile)) {
-			$options = $modFile;
+			$options = $this->listPath . ' mod'; // ezmlm-idx 7+ way
 			$ret = $this->rt($command, $options, true);
 			// ezmlm returns one result per line
 			$ret = array_filter(explode("\n", $ret));
@@ -1626,7 +1626,7 @@ class Ezmlm implements EzmlmInterface {
 		$command = "ezmlm-list";
 		$allowedFile = $this->listPath . '/allow';
 		if (file_exists($allowedFile)) {
-			$options = $allowedFile;
+			$options = $this->listPath . ' allow'; // ezmlm-idx 7+ way
 			$ret = $this->rt($command, $options, true);
 			// ezmlm returns one result per line
 			$ret = array_filter(explode("\n", $ret));
@@ -1656,7 +1656,7 @@ class Ezmlm implements EzmlmInterface {
 		$this->checkValidEmail($moderatorEmail);
 		$this->authAdapter->requireAdmin();
 		$command = "ezmlm-sub";
-		$options = $this->listPath . '/mod ' . $moderatorEmail;
+		$options = $this->listPath . ' mod ' . $moderatorEmail; // ezmlm-idx 7+ way
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1665,7 +1665,7 @@ class Ezmlm implements EzmlmInterface {
 		$this->checkValidEmail($moderatorEmail);
 		$this->authAdapter->requireAdmin();
 		$command = "ezmlm-unsub";
-		$options = $this->listPath . '/mod ' . $moderatorEmail;
+		$options = $this->listPath . ' mod ' . $moderatorEmail; // ezmlm-idx 7+ way
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1674,7 +1674,7 @@ class Ezmlm implements EzmlmInterface {
 		$this->checkValidEmail($posterEmail);
 		$this->authAdapter->requireModerator();
 		$command = "ezmlm-sub";
-		$options = $this->listPath . '/allow ' . $posterEmail;
+		$options = $this->listPath . ' allow ' . $posterEmail; // ezmlm-idx 7+ way
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
@@ -1683,7 +1683,7 @@ class Ezmlm implements EzmlmInterface {
 		$this->checkValidEmail($posterEmail);
 		$this->authAdapter->requireModerator();
 		$command = "ezmlm-unsub";
-		$options = $this->listPath . '/allow ' . $posterEmail;
+		$options = $this->listPath . ' allow ' . $posterEmail; // ezmlm-idx 7+ way
 		$ret = $this->rt($command, $options);
 		return $ret;
 	}
