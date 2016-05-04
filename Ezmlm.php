@@ -429,7 +429,9 @@ class Ezmlm implements EzmlmInterface {
 		if (array_key_exists($monthAbr, $monthsNumbersForLang)) {
 			$monthNumber = $monthsNumbersForLang[$monthAbr];
 		} else {
-			$monthNumber = $this->monthsNumbers['en'][$monthAbr];
+			if (array_key_exists($monthAbr, $this->monthsNumbers)) {
+				$monthNumber = $this->monthsNumbers['en'][$monthAbr];
+			} // else silently fails @TODO something better
 		}
 		return $monthNumber;
 	}
