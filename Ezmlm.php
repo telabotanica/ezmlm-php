@@ -2012,9 +2012,13 @@ class Ezmlm implements EzmlmInterface {
 		$this->authAdapter->requireUser($userEmail);
 		$ret = false;
 		$this->setListName($listName);
-		$listModerators = $this->doGetModerators();
-		if ($listModerators != null) {
-			$ret = in_array($userEmail, $listModerators);
+		try {
+			$listModerators = $this->doGetModerators();
+			if ($listModerators != null) {
+				$ret = in_array($userEmail, $listModerators);
+			}
+		} catch (Exception $e) {
+			// silent fail in case a list could not be evaluated
 		}
 		return $ret;
 	}
@@ -2041,9 +2045,13 @@ class Ezmlm implements EzmlmInterface {
 		$this->authAdapter->requireUser($userEmail);
 		$ret = false;
 		$this->setListName($listName);
-		$listSubscribers = $this->doGetSubscribers();
-		if ($listSubscribers != null) {
-			$ret = in_array($userEmail, $listSubscribers);
+		try {
+			$listSubscribers = $this->doGetSubscribers();
+			if ($listSubscribers != null) {
+				$ret = in_array($userEmail, $listSubscribers);
+			}
+		} catch (Exception $e) {
+			// silent fail in case a list could not be evaluated
 		}
 		return $ret;
 	}
@@ -2072,9 +2080,13 @@ class Ezmlm implements EzmlmInterface {
 		$this->authAdapter->requireUser($userEmail);
 		$ret = false;
 		$this->setListName($listName);
-		$listAllowed = $this->doGetPosters();
-		if ($listAllowed != null) {
-			$ret = in_array($userEmail, $listAllowed);
+		try {
+			$listAllowed = $this->doGetPosters();
+			if ($listAllowed != null) {
+				$ret = in_array($userEmail, $listAllowed);
+			}
+		} catch (Exception $e) {
+			// silent fail in case a list could not be evaluated
 		}
 		return $ret;
 	}
