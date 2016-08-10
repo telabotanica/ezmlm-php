@@ -1994,7 +1994,7 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns all the lists the current user is moderator of
 	 */
 	public function getListsUserIsModeratorOf($userEmail) {
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$listsUserIsModeratorOf = array();
 		$lists = $this->doGetLists();
 		foreach($lists as $list) {
@@ -2009,7 +2009,7 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns true if the current user is moderator of the list $listName
 	 */
 	public function userIsModeratorOf($userEmail, $listName) {
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$ret = false;
 		$this->setListName($listName);
 		try {
@@ -2027,7 +2027,7 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns all the lists the current user is subscriber of
 	 */
 	public function getListsUserIsSubscriberOf($userEmail) {
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$listsUserIsSubscriberOf = array();
 		$lists = $this->doGetLists();
 		foreach($lists as $list) {
@@ -2042,7 +2042,7 @@ class Ezmlm implements EzmlmInterface {
 	 * Returns true if the current user is subscriber of the list $listName
 	 */
 	public function userIsSubscriberOf($userEmail, $listName) {
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$ret = false;
 		$this->setListName($listName);
 		try {
@@ -2061,7 +2061,7 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function getListsUserIsAllowedIn($userEmail) {
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$listsUserIsAllowedIn = array();
 		$lists = $this->doGetLists();
 		foreach($lists as $list) {
@@ -2077,7 +2077,7 @@ class Ezmlm implements EzmlmInterface {
 	 * @TODO admin or same user only
 	 */
 	public function userIsAllowedIn($userEmail, $listName) {
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$ret = false;
 		$this->setListName($listName);
 		try {

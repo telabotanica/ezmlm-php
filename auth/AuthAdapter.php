@@ -87,9 +87,19 @@ class AuthAdapter {
 
 	/**
 	 * throws an exception if the current user's email is different from
-	 * the specified $userEmail, and the current user is not an admin
+	 * the specified $userEmail
 	 */
 	public function requireUser($userEmail) {
+		if (! $this->isCurrentUser($userEmail)) {
+			throw new Exception('Information about users can only be obtained by themselves');
+		}
+	}
+
+	/**
+	 * throws an exception if the current user's email is different from
+	 * the specified $userEmail, and the current user is not an admin
+	 */
+	public function requireUserOrAdmin($userEmail) {
 		if (! $this->isCurrentUser($userEmail) && ! $this->isAdmin()) {
 			throw new Exception('Information about users can only be obtained by themselves');
 		}
