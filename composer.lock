@@ -4,35 +4,34 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "eb4c9e6eebd0c1687e6105c82cfd0e33",
-    "content-hash": "4321d76cccfebaa755837877b386a2d9",
+    "hash": "4af3ddbd5213885ed5de45816565c117",
+    "content-hash": "c3d3ee8d7d574e4fbda81d7cc6c7738f",
     "packages": [
         {
             "name": "php-mime-mail-parser/php-mime-mail-parser",
-            "version": "2.2.2",
+            "version": "2.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-mime-mail-parser/php-mime-mail-parser.git",
-                "reference": "6114828333e0fb488a1c655abcc63721bbd0342e"
+                "reference": "2ea641330621734f5dd30581eb35a82b550e1446"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-mime-mail-parser/php-mime-mail-parser/zipball/6114828333e0fb488a1c655abcc63721bbd0342e",
-                "reference": "6114828333e0fb488a1c655abcc63721bbd0342e",
+                "url": "https://api.github.com/repos/php-mime-mail-parser/php-mime-mail-parser/zipball/2ea641330621734f5dd30581eb35a82b550e1446",
+                "reference": "2ea641330621734f5dd30581eb35a82b550e1446",
                 "shasum": ""
             },
             "require": {
-                "ext-imap": "*",
                 "ext-mailparse": "*",
-                "php": ">=5.4.0"
+                "php": "^5.4.0 || ^7.0"
             },
             "replace": {
                 "exorus/php-mime-mail-parser": "*",
                 "messaged/php-mime-mail-parser": "*"
             },
             "require-dev": {
-                "phpunit/php-token-stream": ">=1.3.0",
-                "phpunit/phpunit": "~4.0",
+                "phpunit/php-token-stream": "^1.3.0",
+                "phpunit/phpunit": "^4.0 || ^5.0",
                 "satooshi/php-coveralls": "0.*",
                 "squizlabs/php_codesniffer": "2.*"
             },
@@ -86,20 +85,20 @@
                 "mailparse",
                 "mime"
             ],
-            "time": "2016-02-15 05:20:52"
+            "time": "2016-11-19 12:38:25"
         },
         {
             "name": "phpmailer/phpmailer",
-            "version": "v5.2.14",
+            "version": "v5.2.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPMailer/PHPMailer.git",
-                "reference": "e774bc9152de85547336e22b8926189e582ece95"
+                "reference": "1d85f9ef3ecfc42bbc4f3c70d5e37ca9a65f629a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/e774bc9152de85547336e22b8926189e582ece95",
-                "reference": "e774bc9152de85547336e22b8926189e582ece95",
+                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/1d85f9ef3ecfc42bbc4f3c70d5e37ca9a65f629a",
+                "reference": "1d85f9ef3ecfc42bbc4f3c70d5e37ca9a65f629a",
                 "shasum": ""
             },
             "require": {
@@ -110,8 +109,7 @@
                 "phpunit/phpunit": "4.7.*"
             },
             "suggest": {
-                "league/oauth2-client": "Needed for XOAUTH2 authentication",
-                "league/oauth2-google": "Needed for Gmail XOAUTH2"
+                "league/oauth2-google": "Needed for Google XOAUTH2 authentication"
             },
             "type": "library",
             "autoload": {
@@ -147,20 +145,20 @@
                 }
             ],
             "description": "PHPMailer is a full-featured email creation and transfer class for PHP",
-            "time": "2015-11-01 10:15:28"
+            "time": "2016-06-06 09:09:37"
         },
         {
             "name": "telabotanica/tb-auth-php",
-            "version": "0.1.1a",
+            "version": "0.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/telabotanica/tb-auth-php.git",
-                "reference": "661b50f7a34f52d6fc347e10a9b21441da8a1438"
+                "reference": "681c96007392291bfcddd88d976b1d2f9db92921"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/661b50f7a34f52d6fc347e10a9b21441da8a1438",
-                "reference": "661b50f7a34f52d6fc347e10a9b21441da8a1438",
+                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/681c96007392291bfcddd88d976b1d2f9db92921",
+                "reference": "681c96007392291bfcddd88d976b1d2f9db92921",
                 "shasum": ""
             },
             "require": {
@@ -190,15 +188,57 @@
                 "tela-botanica",
                 "telabotanica"
             ],
-            "time": "2016-03-09 13:17:58"
+            "time": "2016-11-21 13:01:32"
+        },
+        {
+            "name": "telabotanica/tb-base-rest-service",
+            "version": "0.1.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/telabotanica/tb-base-rest-service-php.git",
+                "reference": "5aa53ce03d6c853f020b70ffb17a3e9a18937c84"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/telabotanica/tb-base-rest-service-php/zipball/5aa53ce03d6c853f020b70ffb17a3e9a18937c84",
+                "reference": "5aa53ce03d6c853f020b70ffb17a3e9a18937c84",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.5.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "BaseRestServiceTB": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPLv3"
+            ],
+            "authors": [
+                {
+                    "name": "Mathias Chouet",
+                    "email": "mathias@tela-botanica.org"
+                }
+            ],
+            "description": "A simple PHP class that helps building REST webservices",
+            "homepage": "https://github.com/telabotanica/tb-base-rest-service",
+            "keywords": [
+                "rest",
+                "tela botanica",
+                "tela-botanica",
+                "telabotanica",
+                "webservice"
+            ],
+            "time": "2016-11-04 10:55:09"
         }
     ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "telabotanica/tb-auth-php": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],

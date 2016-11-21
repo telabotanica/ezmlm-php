@@ -17,6 +17,9 @@
 			"admins": [
 				"john@mywebsite.org"
 			],
+			"adminRoles": [
+				"tb_ezmlm-php_admin"
+			],
 			"ignoreSSLIssues": false,
 			"headerName": "Authorization"
 		}
