@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "4af3ddbd5213885ed5de45816565c117",
-    "content-hash": "c3d3ee8d7d574e4fbda81d7cc6c7738f",
+    "hash": "c316dd871a3145743abc607cc08ae178",
+    "content-hash": "7caf43048e62f32eb222423c636c45fd",
     "packages": [
         {
             "name": "php-mime-mail-parser/php-mime-mail-parser",
@@ -149,16 +149,16 @@
         },
         {
             "name": "telabotanica/tb-auth-php",
-            "version": "0.1.2",
+            "version": "0.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/telabotanica/tb-auth-php.git",
-                "reference": "681c96007392291bfcddd88d976b1d2f9db92921"
+                "reference": "fab844eb40f35f4eb06a2b5c311580615d2c99d8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/681c96007392291bfcddd88d976b1d2f9db92921",
-                "reference": "681c96007392291bfcddd88d976b1d2f9db92921",
+                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/fab844eb40f35f4eb06a2b5c311580615d2c99d8",
+                "reference": "fab844eb40f35f4eb06a2b5c311580615d2c99d8",
                 "shasum": ""
             },
             "require": {
@@ -188,7 +188,7 @@
                 "tela-botanica",
                 "telabotanica"
             ],
-            "time": "2016-11-21 13:01:32"
+            "time": "2016-11-21 14:06:33"
         },
         {
             "name": "telabotanica/tb-base-rest-service",
