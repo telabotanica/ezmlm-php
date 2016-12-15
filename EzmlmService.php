@@ -9,7 +9,7 @@ require_once 'EzmlmInterface.php';
 class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 
 	/** JSON Autodocumentation */
-	public static $AUTODOC_PATH = "autodoc.json";
+	public static $AUTODOC_PATH = "./autodoc.json";
 
 	/** JSON service configuration */
 	public static $CONFIG_PATH = "config/service.json";
@@ -32,7 +32,7 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 		if (file_exists(self::$CONFIG_PATH)) {
 			$config = json_decode(file_get_contents(self::$CONFIG_PATH), true);
 		} else {
-			throw new Exception("file " . self::$CHEMIN_CONFIG . " doesn't exist");
+			throw new Exception("file " . self::$CONFIG_PATH . " doesn't exist");
 		}
 
 		parent::__construct($config);
@@ -116,7 +116,7 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 	protected function usage() {
 		$rootUri = $this->domainRoot . $this->baseURI . "/";
 		// reading JSON autodoc and replacing root URI
-		if (file_exists(self::$AUTODOC_PATH)) {
+		if (file_exists(dirname(__FILE__) . '/' . self::$AUTODOC_PATH)) {
 			$infos = json_decode(file_get_contents(self::$AUTODOC_PATH), true);
 			foreach ($infos['uri-patterns'] as &$up) {
 				foreach($up as $k => &$v) {
