@@ -271,14 +271,21 @@ class Ezmlm implements EzmlmInterface {
 
 	/**
 	 * Throws an exception if $this->cachePath is not set, or if the directory
-	 * does not exist or is not writable
+	 * does not exist or is not writable; however, if the directory does not
+	 * exist but starts with "/tmp/", tries to create it
 	 */
 	protected function checkValidCache() {
 		if (empty($this->cachePath)) {
 			throw new Exception("please set a valid cache path");
 		}
 		if (!is_dir($this->cachePath)) {
-			throw new Exception("cache folder [" . $this->cachePath . "] does not exist");
+			if (substr($this->cachePath, 0, 5) == '/tmp/') {
+				if (! mkdir ($this->cachePath, 0777, true)) {
+					throw new Exception("cache folder [" . $this->cachePath . "] could not be created");
+				}   
+			} else {
+				throw new Exception("cache folder [" . $this->cachePath . "] does not exist");
+			}
 		}
 		if (!is_writable($this->cachePath)) {
 			throw new Exception("cache folder [" . $this->cachePath . "] is not writable");
