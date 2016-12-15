@@ -869,8 +869,8 @@ class Ezmlm implements EzmlmInterface {
 		$attachmentsArray = array();
 		foreach ($attachments as $attachment) {
 			$attachmentsArray[] = array(
-				"filename" => $attachment->filename,
-				"content-type" => $attachment->contentType,
+				"filename" => $attachment->getFilename(),
+				"content-type" => $attachment->getContentType(),
 				"content-transfer-encoding" => isset($attachment->headers["content-transfer-encoding"]) ? $attachment->headers["content-transfer-encoding"] : null
 			);
 		}
