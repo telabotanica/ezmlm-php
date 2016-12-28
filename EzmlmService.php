@@ -9,7 +9,7 @@ require_once 'EzmlmInterface.php';
 class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 
 	/** JSON Autodocumentation */
-	public static $AUTODOC_PATH = __DIR__ . "/autodoc.json";
+	public static $AUTODOC_PATH = "./autodoc.json";
 
 	/** JSON service configuration */
 	public static $CONFIG_PATH = "config/service.json";
@@ -116,8 +116,8 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 	protected function usage() {
 		$rootUri = $this->domainRoot . $this->baseURI . "/";
 		// reading JSON autodoc and replacing root URI
-		if (file_exists(self::$AUTODOC_PATH)) {
-			$infos = json_decode(file_get_contents(self::$AUTODOC_PATH), true);
+		if (file_exists(dirname(__FILE__) . '/' . self::$AUTODOC_PATH)) {
+			$infos = json_decode(file_get_contents(dirname(__FILE__) . '/' . self::$AUTODOC_PATH), true);
 			foreach ($infos['uri-patterns'] as &$up) {
 				foreach($up as $k => &$v) {
 					$up[$k] = str_replace("__ROOTURI__", $rootUri, $up[$k]);
