@@ -9,7 +9,7 @@ require_once 'EzmlmInterface.php';
 class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 
 	/** JSON Autodocumentation */
-	public static $AUTODOC_PATH = "./autodoc.json";
+	public static $AUTODOC_PATH = __DIR__ . "/autodoc.json";
 
 	/** JSON service configuration */
 	public static $CONFIG_PATH = "config/service.json";
@@ -116,7 +116,7 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 	protected function usage() {
 		$rootUri = $this->domainRoot . $this->baseURI . "/";
 		// reading JSON autodoc and replacing root URI
-		if (file_exists(dirname(__FILE__) . '/' . self::$AUTODOC_PATH)) {
+		if (file_exists(self::$AUTODOC_PATH)) {
 			$infos = json_decode(file_get_contents(self::$AUTODOC_PATH), true);
 			foreach ($infos['uri-patterns'] as &$up) {
 				foreach($up as $k => &$v) {
@@ -246,6 +246,14 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 							$this->userIsAllowedIn($userEmail, array_shift($this->resources));
 						}
 						break;
+					case "change-address-to":
+						// no more resources ?
+						if (count($this->resources) == 0) {
+							$this->usage();
+						} else {
+							$this->changeUserAddress($userEmail, array_shift($this->resources));
+						}
+						break;
 					default:
 						$this->usage();
 				}
@@ -255,12 +263,12 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 
 	// @TODO admin only
 	protected function getAllUsers() {
-		throw new Exception('not implemented');
+		throw new Exception('getAllUsers() : not implemented');
 	}
 
 	// @TODO admin or same user only
 	protected function getUserInfo() {
-		throw new Exception('not implemented');
+		throw new Exception('getUserInfo() : not implemented');
 	}
 
 	/**
@@ -308,6 +316,12 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 	 */
 	protected function userIsAllowedIn($userEmail, $listName) {
 		$info = $this->lib->userIsAllowedIn($userEmail, $listName);
+		$this->sendJson($info);
+	}
+
+	// @TODO admin only
+	protected function changeUserAddress($oldAddress, $newAddress) {
+		$info = $this->lib->changeUserAddress($oldAddress, $newAddress);
 		$this->sendJson($info);
 	}
 
@@ -654,7 +668,7 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 	}
 
 	protected function getAllListUsers() {
-		$this->sendError('Not implemented');
+		$this->sendError('getAllListUsers() : Not implemented');
 	}
 
 	protected function getListUserInfo($userEmail) {
@@ -664,12 +678,12 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 
 	protected function getThreadsByAuthor() {
 		// @TODO detect /latest et ?count
-		$this->sendError('Not implemented');
+		$this->sendError('getThreadsByAuthor() : Not implemented');
 	}
 
 	protected function getMessagesByAuthor() {
 		// @TODO detect /latest, /search, /id/(next|previous) et ?count
-		$this->sendError('Not implemented');
+		$this->sendError('getMessagesByAuthor() : Not implemented');
 	}
 
 	/**
@@ -1154,7 +1168,7 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 	}
 
 	protected function deleteMessage() {
-		$this->sendError('Not implemented');
+		$this->sendError('deleteMessage() : Not implemented');
 	}
 
 	protected function options() {

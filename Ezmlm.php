@@ -970,7 +970,7 @@ class Ezmlm implements EzmlmInterface {
 			$f1 = floor($id / 100);
 			$f2 = $id - (100 * $f1);
 		}
-		$folderForId = $f1 . '/' . str_pad($f2, 2, "0",STR_PAD_LEFT);
+		$folderForId = $f1 . '/' . str_pad($f2, 2, "0", STR_PAD_LEFT);
 		$folderPath = $this->cachePath . '/' . $this->listName . '/' . $folderForId;
 		if (! is_dir($folderPath)) {
 			mkdir($folderPath, 0777, true);
@@ -2096,6 +2096,73 @@ class Ezmlm implements EzmlmInterface {
 			// silent fail in case a list could not be evaluated
 		}
 		return $ret;
+	}
+
+	/**
+	 * Replaces all occurrences of $oldAddress with $newAddress in all sections
+	 * (subscribers, moderators, allowed posters) of all lists; only admins may
+	 * do this.
+	 * 
+	 * @param type $oldAddress
+	 * @param type $newAddress
+	 */
+	public function changeUserAddress($oldAddress, $newAddress) {
+		$this->authAdapter->requireAdmin();
+
+		$stats = array(
+			'old_address' => $oldAddress,
+			'new_address' => $newAddress,
+			'subscriber_migrations' => array(),
+			'allowed_poster_migrations' => array(),
+			'moderator_migrations' => array()
+		);
+
+		// subscriber
+		$listsUserIsSubscriberOf = $this->getListsUserIsSubscriberOf($oldAddress);
+		//var_dump($listsUserIsSubscriberOf);
+		foreach ($listsUserIsSubscriberOf as $listName) {
+			$this->setListName($listName);
+			$ok = true;
+			try {
+				$ok = ($ok && $this->addSubscriber($newAddress));
+				$ok = ($ok && $this->deleteSubscriber($oldAddress));
+			} catch (Exception $e) {
+				$ok = false;
+			}
+			$stats['subscriber_migrations'][$listName] = ($ok ? 'ok' : 'failed');
+		}
+
+		// allowed poster
+		$listsUserIsAllowedIn = $this->getListsUserIsAllowedIn($oldAddress);
+		//var_dump($listsUserIsAllowedIn);
+		foreach ($listsUserIsAllowedIn as $listName) {
+			$this->setListName($listName);
+			$ok = true;
+			try {
+				$ok = ($ok && $this->addPoster($newAddress));
+				$ok = ($ok && $this->deletePoster($oldAddress));
+			} catch (Exception $e) {
+				$ok = false;
+			}
+			$stats['allowed_poster_migrations'][$listName] = ($ok ? 'ok' : 'failed');
+		}
+
+		// moderator
+		$listsUserIsModeratorOf = $this->getListsUserIsModeratorOf($oldAddress);
+		//var_dump($listsUserIsModeratorOf);
+		foreach ($listsUserIsModeratorOf as $listName) {
+			$this->setListName($listName);
+			$ok = true;
+			try {
+				$ok = ($ok && $this->addModerator($newAddress));
+				$ok = ($ok && $this->deleteModerator($oldAddress));
+			} catch (Exception $e) {
+				$ok = false;
+			}
+			$stats['moderator_migrations'][$listName] = ($ok ? 'ok' : 'failed');
+		}
+
+		return $stats;
 	}
 
 	public function getListUserInfo($userEmail) {
