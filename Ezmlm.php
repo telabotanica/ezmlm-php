@@ -1998,7 +1998,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
-	 * Returns all the lists the current user is moderator of
+	 * Returns all the lists the given user is moderator of
 	 */
 	public function getListsUserIsModeratorOf($userEmail) {
 		$this->authAdapter->requireUserOrAdmin($userEmail);
@@ -2013,7 +2013,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
-	 * Returns true if the current user is moderator of the list $listName
+	 * Returns true if the given user is moderator of the list $listName
 	 */
 	public function userIsModeratorOf($userEmail, $listName) {
 		$this->authAdapter->requireUserOrAdmin($userEmail);
@@ -2031,7 +2031,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
-	 * Returns all the lists the current user is subscriber of
+	 * Returns all the lists the given user is subscriber of
 	 */
 	public function getListsUserIsSubscriberOf($userEmail) {
 		$this->authAdapter->requireUserOrAdmin($userEmail);
@@ -2046,7 +2046,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
-	 * Returns true if the current user is subscriber of the list $listName
+	 * Returns true if the given user is subscriber of the list $listName
 	 */
 	public function userIsSubscriberOf($userEmail, $listName) {
 		$this->authAdapter->requireUserOrAdmin($userEmail);
@@ -2064,8 +2064,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
-	 * Returns all the lists the current user is allowed to write to
-	 * @TODO admin or same user only
+	 * Returns all the lists the given user is allowed to write to
 	 */
 	public function getListsUserIsAllowedIn($userEmail) {
 		$this->authAdapter->requireUserOrAdmin($userEmail);
@@ -2080,8 +2079,7 @@ class Ezmlm implements EzmlmInterface {
 	}
 
 	/**
-	 * Returns true if the current user is allowed to write to the list $listName
-	 * @TODO admin or same user only
+	 * Returns true if the given user is allowed to write to the list $listName
 	 */
 	public function userIsAllowedIn($userEmail, $listName) {
 		$this->authAdapter->requireUserOrAdmin($userEmail);
@@ -2167,19 +2165,16 @@ class Ezmlm implements EzmlmInterface {
 
 	public function getListUserInfo($userEmail) {
 		$this->checkValidList();
-		$this->authAdapter->requireUser($userEmail);
+		$this->authAdapter->requireUserOrAdmin($userEmail);
 		$ret = array(
 			"rights" => array(
-				// @WARNING if an admin is authorized to get user information,
-				// calling authAdapter for rights will give the admin's rights
-				// and not the required user's ones
-				"read" => $this->authAdapter->mayRead(),
-				"post" => $this->authAdapter->mayPost(),
-				"moderator" => $this->authAdapter->isModerator(),
-				"admin" => $this->authAdapter->isAdmin()
-			)
+				"read" => $this->authAdapter->mayRead($userEmail),
+				"post" => $this->authAdapter->mayPost($userEmail),
+				"moderator" => $this->authAdapter->isModerator($userEmail),
+				"admin" => $this->authAdapter->isAdmin($userEmail)
+			),
+			"subscriber" => $this->userIsSubscriberOf($userEmail, $this->listName)
 		);
-		// rights
 		// @TODO stats (first message + date, last message + date, nb messages)
 		return $ret;
 	}
