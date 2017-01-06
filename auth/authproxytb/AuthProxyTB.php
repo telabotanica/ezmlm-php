@@ -56,11 +56,13 @@ class AuthProxyTB extends AuthAdapter {
 		} else {
 			$testedUserEmail = $userEmail;
 		}
+		// @TODO test if list is public but moderated (add isModerated() to lib)
+		$isPublic = $this->lib->isPublic();
 		$isSubscriber = $this->lib->userIsSubscriberOf($testedUserEmail, $this->lib->getListName());
 		$isAllowedPoster = $this->lib->userIsAllowedIn($testedUserEmail, $this->lib->getListName());
 		// if an admin is asking for someone else's rights, don't consider the
 		// admin status
-		$rights = $isSubscriber || $isAllowedPoster;
+		$rights = $isPublic || $isSubscriber || $isAllowedPoster;
 		if ($userEmail === false || $userEmail === $this->sso->getUserEmail()) {
 			$rights = $rights || $this->isAdmin();
 		}
