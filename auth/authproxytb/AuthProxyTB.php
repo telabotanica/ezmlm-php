@@ -26,19 +26,27 @@ class AuthProxyTB extends AuthAdapter {
 	 * it, if [s]he is moderator of it, or if [s]he is admin
 	 */
 	public function mayRead($userEmail=false) {
-		if ($userEmail === false) {
-			$testedUserEmail = $this->sso->getUserEmail();
-		} else {
-			$testedUserEmail = $userEmail;
-		}
+		// anyone may read a public list
 		$isPublic = $this->lib->isPublic();
-		// @TODO optimization: check user rights only if list is not public
-		$isSubscriber = $this->lib->userIsSubscriberOf($testedUserEmail, $this->lib->getListName());
-		// if an admin is asking for someone else's rights, don't consider the
-		// admin status
-		$rights = $isPublic || $isSubscriber || $this->isModerator($testedUserEmail);
-		if ($userEmail === false || $userEmail === $this->sso->getUserEmail()) {
-			$rights = $rights || $this->isAdmin();
+		if ($isPublic) {
+			return true;
+		}
+		// whose rights are we checking ?
+		if ($userEmail === false || $this->isCurrentUser($userEmail)) {
+			// checking current user's rights
+			$isSubscriber = $this->lib->userIsSubscriberOf($this->sso->getUserEmail(), $this->lib->getListName());
+			$rights = $isSubscriber || $this->isModerator() || $this->isAdmin();
+		} else {
+			// checking someone else's rights
+			// only an admin may do this
+			if (! $this->sso->isAdmin()) {
+				throw new Exception('You need to be admin to do this');
+			}
+			$isSubscriber = $this->lib->userIsSubscriberOf($userEmail, $this->lib->getListName());
+			// knowing if someone else is admin is impossible by design; no
+			// isAdmin() test here (would always be true because current user
+			// must be admin to check someone else's rights)
+			$rights = $isSubscriber || $this->isModerator($userEmail);
 		}
 		return $rights;
 	}
@@ -51,20 +59,30 @@ class AuthProxyTB extends AuthAdapter {
 	 *		implemented in Ezmlm class
 	 */
 	public function mayPost($userEmail=false) {
-		if ($userEmail === false) {
-			$testedUserEmail = $this->sso->getUserEmail();
-		} else {
-			$testedUserEmail = $userEmail;
-		}
+		// anyone may post to a public list
 		// @TODO test if list is public but moderated (add isModerated() to lib)
 		$isPublic = $this->lib->isPublic();
-		$isSubscriber = $this->lib->userIsSubscriberOf($testedUserEmail, $this->lib->getListName());
-		$isAllowedPoster = $this->lib->userIsAllowedIn($testedUserEmail, $this->lib->getListName());
-		// if an admin is asking for someone else's rights, don't consider the
-		// admin status
-		$rights = $isPublic || $isSubscriber || $isAllowedPoster;
-		if ($userEmail === false || $userEmail === $this->sso->getUserEmail()) {
-			$rights = $rights || $this->isAdmin();
+		if ($isPublic) {
+			return true;
+		}
+		// whose rights are we checking ?
+		if ($userEmail === false || $this->isCurrentUser($userEmail)) {
+			// checking current user's rights
+			$isSubscriber = $this->lib->userIsSubscriberOf($this->sso->getUserEmail(), $this->lib->getListName());
+			$isAllowedPoster = $this->lib->userIsAllowedIn($this->sso->getUserEmail(), $this->lib->getListName());
+			$rights = $isSubscriber || $isAllowedPoster || $this->isModerator() || $this->isAdmin();
+		} else {
+			// checking someone else's rights
+			// only an admin may do this
+			if (! $this->sso->isAdmin()) {
+				throw new Exception('You need to be admin to do this');
+			}
+			$isSubscriber = $this->lib->userIsSubscriberOf($userEmail, $this->lib->getListName());
+			$isAllowedPoster = $this->lib->userIsAllowedIn($userEmail, $this->lib->getListName());
+			// knowing if someone else is admin is impossible by design; no
+			// isAdmin() test here (would always be true because current user
+			// must be admin to check someone else's rights)
+			$rights = $isSubscriber || $isAllowedPoster || $this->isModerator($userEmail);
 		}
 		return $rights;
 	}
@@ -74,23 +92,28 @@ class AuthProxyTB extends AuthAdapter {
 	 * admin
 	 */
 	public function isModerator($userEmail=false) {
-		if ($userEmail === false) {
-			$testedUserEmail = $this->sso->getUserEmail();
+		// whose rights are we checking ?
+		if ($userEmail === false || $this->isCurrentUser($userEmail)) {
+			// checking current user's rights
+			$isModerator = $this->lib->userIsModeratorOf($this->sso->getUserEmail(), $this->lib->getListName());
+			$rights = $isModerator || $this->isAdmin();
 		} else {
-			$testedUserEmail = $userEmail;
-		}
-		$isModerator = $this->lib->userIsModeratorOf($testedUserEmail, $this->lib->getListName());
-		// if an admin is asking for someone else's rights, don't consider the
-		// admin status
-		$rights = $isModerator;
-		if ($userEmail === false || $userEmail === $this->sso->getUserEmail()) {
-			$rights = $rights || $this->isAdmin();
+			// checking someone else's rights
+			// only an admin may do this
+			if (! $this->sso->isAdmin()) {
+				throw new Exception('You need to be admin to do this');
+			}
+			$isModerator = $this->lib->userIsModeratorOf($userEmail, $this->lib->getListName());
+			// knowing if someone else is admin is impossible by design; no
+			// isAdmin() test here (would always be true because current user
+			// must be admin to check someone else's rights)
+			$rights = $isModerator;
 		}
 		return $rights;
 	}
 
 	public function isCurrentUser($userEmail) {
-		return $this->sso->getUserEmail() == $userEmail;
+		return strtolower($this->sso->getUserEmail()) == strtolower($userEmail);
 	}
 
 	/**
