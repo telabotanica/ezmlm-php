@@ -16,23 +16,23 @@ class AuthAdapter {
 	 * must return true if the current user has "read" rights on the current
 	 * list, false otherwise
 	 */
-	public function mayRead() {
+	public function mayRead($userEmail=false) {
 		return true; // rights management disabled by default
 	}
 
 	/**
-	 * must return true if the current user has "post" (write) rights on the
+	 * must return true if the current or given user has "post" (write) rights
+	 * on the current list, false otherwise
+	 */
+	public function mayPost($userEmail=false) {
+		return true; // rights management disabled by default
+	}
+
+	/**
+	 * must return true if the current or given user is a moderator of the
 	 * current list, false otherwise
 	 */
-	public function mayPost() {
-		return true; // rights management disabled by default
-	}
-
-	/**
-	 * must return true if the current user is a moderator of the current list,
-	 * false otherwise
-	 */
-	public function isModerator() {
+	public function isModerator($userEmail=false) {
 		return true; // rights management disabled by default
 	}
 
