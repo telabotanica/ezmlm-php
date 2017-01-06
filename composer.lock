@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "c316dd871a3145743abc607cc08ae178",
-    "content-hash": "7caf43048e62f32eb222423c636c45fd",
+    "hash": "5d42a3ff2a4148b9dedcf68c6185e8c9",
+    "content-hash": "52681d7d63bed746bb992a4465d6fdee",
     "packages": [
         {
             "name": "php-mime-mail-parser/php-mime-mail-parser",
@@ -89,16 +89,16 @@
         },
         {
             "name": "phpmailer/phpmailer",
-            "version": "v5.2.16",
+            "version": "v5.2.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPMailer/PHPMailer.git",
-                "reference": "1d85f9ef3ecfc42bbc4f3c70d5e37ca9a65f629a"
+                "reference": "1d51856b76c06fc687fcd9180efa7a0bed0d761e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/1d85f9ef3ecfc42bbc4f3c70d5e37ca9a65f629a",
-                "reference": "1d85f9ef3ecfc42bbc4f3c70d5e37ca9a65f629a",
+                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/1d51856b76c06fc687fcd9180efa7a0bed0d761e",
+                "reference": "1d51856b76c06fc687fcd9180efa7a0bed0d761e",
                 "shasum": ""
             },
             "require": {
@@ -145,20 +145,20 @@
                 }
             ],
             "description": "PHPMailer is a full-featured email creation and transfer class for PHP",
-            "time": "2016-06-06 09:09:37"
+            "time": "2016-12-28 15:35:48"
         },
         {
             "name": "telabotanica/tb-auth-php",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/telabotanica/tb-auth-php.git",
-                "reference": "fab844eb40f35f4eb06a2b5c311580615d2c99d8"
+                "reference": "ef302078bfdaaf63a98a110c5d9ffd1728022f86"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/fab844eb40f35f4eb06a2b5c311580615d2c99d8",
-                "reference": "fab844eb40f35f4eb06a2b5c311580615d2c99d8",
+                "url": "https://api.github.com/repos/telabotanica/tb-auth-php/zipball/ef302078bfdaaf63a98a110c5d9ffd1728022f86",
+                "reference": "ef302078bfdaaf63a98a110c5d9ffd1728022f86",
                 "shasum": ""
             },
             "require": {
@@ -188,7 +188,7 @@
                 "tela-botanica",
                 "telabotanica"
             ],
-            "time": "2016-11-21 14:06:33"
+            "time": "2016-12-28 16:53:32"
         },
         {
             "name": "telabotanica/tb-base-rest-service",
