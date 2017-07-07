@@ -487,7 +487,7 @@ class Ezmlm implements EzmlmInterface {
 			$timestamp = strtotime($match2[1]);
 			$date = null;
 			if ($timestamp != false) {
-				$date = date('Y-m-d h:i:s', $timestamp);
+				$date = date('Y-m-d H:i:s', $timestamp);
 			}
 			$subject = "";
 			if (isset($match1[3])) {
