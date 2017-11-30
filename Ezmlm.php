@@ -857,6 +857,8 @@ class Ezmlm implements EzmlmInterface {
 	protected function extractEmailFromHeader($authorHeader) {
 		if (preg_match('/.*<(.+@.+\..+)>/', $authorHeader, $matches)) {
 			return $matches[1];
+		} elseif (preg_match('/(.+@.+\..+)/', $authorHeader, $matches)) {
+			return $matches[1];
 		}
 		return false;
 	}
