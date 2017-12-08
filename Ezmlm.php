@@ -483,7 +483,6 @@ class Ezmlm implements EzmlmInterface {
 
 		$message = null;
 		if ($match1[1] != '') {
-			//var_dump($match2);
 			$timestamp = strtotime($match2[1]);
 			$date = null;
 			if ($timestamp != false) {
@@ -493,6 +492,13 @@ class Ezmlm implements EzmlmInterface {
 			if (isset($match1[3])) {
 				$subject = $this->utfize(trim($match1[3]));
 			}
+			// anonymizing author_name when similar to author_email with just '.' instead of '@'
+			$authorName = $this->utfize($match2[3]);
+			$authorEmail = $this->readMessageAuthorEmail(intval($match1[1]));// doesn't seem to cost so much
+			if ($authorName == str_replace('@', '.', $authorEmail)) {
+				$pos = strpos($authorEmail,'@');
+				$authorName = substr($authorName, 0, $pos);
+			}
 			// formatted return
 			$message = array(
 				"message_id" => intval($match1[1]),
@@ -500,8 +506,8 @@ class Ezmlm implements EzmlmInterface {
 				"subject" => $subject,
 				"message_date" => $date, // @TODO include time zone ?
 				"author_hash" => $match2[2],
-				"author_name" => $this->utfize($match2[3]),
-				"author_email" => $this->readMessageAuthorEmail(intval($match1[1])) // doesn't seem to cost so much
+				"author_name" => $authorName,
+				"author_email" => $authorEmail
 			);
 		}
 		return $message;
@@ -564,7 +570,6 @@ class Ezmlm implements EzmlmInterface {
 		if ($sort == 'desc') {
 			$subfolders = array_reverse($subfolders);
 		}
-		//var_dump($subfolders);
 
 		$messages = array();
 		// read index files for each folder
@@ -631,7 +636,6 @@ class Ezmlm implements EzmlmInterface {
 		if ($day != false) {
 			$pattern = '\t' . $day . ' ' . $pattern;
 		}
-		//var_dump($pattern); exit;
 		$archiveDir = $this->listPath . '/archive';
 		$command = $this->grepBinary . ' --no-group-separator -i -hP -B1 "' . $pattern . '" ' . $archiveDir . '/*/index';
 		exec($command, $output);
@@ -852,6 +856,8 @@ class Ezmlm implements EzmlmInterface {
 	 */
 	protected function extractEmailFromHeader($authorHeader) {
 		if (preg_match('/.*<(.+@.+\..+)>/', $authorHeader, $matches)) {
+			return $matches[1];
+		} elseif (preg_match('/(.+@.+\..+)/', $authorHeader, $matches)) {
 			return $matches[1];
 		}
 		return false;
