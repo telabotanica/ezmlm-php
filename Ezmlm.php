@@ -500,13 +500,12 @@ class Ezmlm implements EzmlmInterface {
 				$authorName = substr($authorName, 0, $pos);
 			}
 			// if authorName is a mail anyway with just '.' instead of '@'
-			$mailTld = array('com','org','net','edu','int','gov','coop','fr','ch','ca','be','dz','de','ad','au','eu','uk','gp','gf','lb','lu','li','ma','mq','yt','fm','mc','nc','pg','pf','pt','re','pm','tf','tn','us');
-			$compaRe = '/\.[\w-]+\.';
-			for ($i=0; $i< sizeof($mailTld); $i++ ){
-				$mailTld[$i] = $compaRe . $mailTld[$i].'$/';
-				preg_match($mailTld[$i], $authorName, $matchSM);
-				if (is_array($matchSM) && isset($matchSM[0])){
-					$authorName = substr($authorName, 0, strpos($authorName, $matchSM[0]));
+			$tlds = array('com','org','net','edu','int','gov','coop','fr','ch','ca','be','dz','de','ad','au','eu','uk','gp','gf','lb','lu','li','ma','mq','yt','fm','mc','nc','pg','pf','pt','re','pm','tf','tn','us');
+			foreach ($tlds as $tld){
+				$regex = '/\.[\w-]+\.' . $tld .'$/';
+				preg_match($regex, $authorName, $matches);
+				if (isset($matches[0])){
+					$authorName = substr($authorName, 0, strpos($authorName, $matches[0]));
 				}
 			}
 			// for the aesthetics of authorName
