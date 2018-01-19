@@ -496,8 +496,7 @@ class Ezmlm implements EzmlmInterface {
 			$authorName = $this->utfize($match2[3]);
 			$authorEmail = $this->readMessageAuthorEmail(intval($match1[1]));
 			if ($authorName == str_replace('@', '.', $authorEmail)) {
-				$pos = strpos($authorEmail,'@');
-				$authorName = substr($authorName, 0, $pos);
+				$authorName = strstr($authorEmail, '@', true);
 			}
 			// if authorName is a mail anyway with just '.' instead of '@'
 			$tlds = array('com','org','net','edu','int','gov','coop','fr','ch','ca','be','dz','de','ad','au','eu','uk','gp','gf','lb','lu','li','ma','mq','yt','fm','mc','nc','pg','pf','pt','re','pm','tf','tn','us');
@@ -505,7 +504,7 @@ class Ezmlm implements EzmlmInterface {
 				$regex = '/\.[\w-]+\.' . $tld .'$/';
 				preg_match($regex, $authorName, $matches);
 				if (isset($matches[0])){
-					$authorName = substr($authorName, 0, strpos($authorName, $matches[0]));
+					$authorName = strstr($authorName, $matches[0], true);
 				}
 			}
 			// for the aesthetics of authorName
