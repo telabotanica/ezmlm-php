@@ -494,13 +494,13 @@ class Ezmlm implements EzmlmInterface {
 			}
 			// anonymizing author_name when similar to author_email with just '.' instead of '@'
 			$authorName = $this->utfize($match2[3]);
-			$authorEmail = $this->readMessageAuthorEmail(intval($match1[1]))
+			$authorEmail = $this->readMessageAuthorEmail(intval($match1[1]));
 			if ($authorName == str_replace('@', '.', $authorEmail)) {
 				$pos = strpos($authorEmail,'@');
 				$authorName = substr($authorName, 0, $pos);
 			}
 			// if authorName is a mail anyway with just '.' instead of '@'
-			$mailTld = array("com","org","net","edu","int","gov","coop","fr","ch","ca","be","dz","de","ad","au","eu","uk","gp","gf","lb","lu","li","ma","mq","yt","fm","mc","nc","pg","pf","pt","re","pm","tf","tn","us");
+			$mailTld = array('com','org','net','edu','int','gov','coop','fr','ch','ca','be','dz','de','ad','au','eu','uk','gp','gf','lb','lu','li','ma','mq','yt','fm','mc','nc','pg','pf','pt','re','pm','tf','tn','us');
 			$compaRe = '/\.[\w-]+\.';
 			for ($i=0; $i< sizeof($mailTld); $i++ ){
 				$mailTld[$i] = $compaRe . $mailTld[$i].'$/';
