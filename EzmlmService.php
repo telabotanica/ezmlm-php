@@ -1109,6 +1109,16 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 					}
 				}
 				break;
+
+			case 'subscriber':
+				if (count($this->resources) != 1) {
+					$this->usage();
+					return false;
+				} else {
+					$argument = array_shift($this->resources);
+					$this->deleteSubscriberFromAllLists($argument);
+				}
+				break;
 			default:
 				$this->usage();
 				return false;
@@ -1151,6 +1161,18 @@ class EzmlmService extends BaseRestServiceTB implements EzmlmInterface {
 			));
 		} else {
 			$this->sendError('unknown error in deleteModerator()');
+		};
+	}
+
+	protected function deleteSubscriberFromAllLists($address) {
+		//echo "deleteSubscriberFromAllLists($address)\n";
+		$ret = $this->lib->deleteSubscriberFromAllLists($address);
+		if ($ret === true) {
+			$this->sendJson(array(
+				"deleted_subscriber_from_all_lists" => $address
+			));
+		} else {
+			$this->sendError('unknown error in deleteSubscriberFromAllLists()');
 		};
 	}
 

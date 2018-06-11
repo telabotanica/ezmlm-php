@@ -1695,6 +1695,16 @@ class Ezmlm implements EzmlmInterface {
 		return $ret;
 	}
 
+	public function deleteSubscriberFromAllLists($subscriberEmail) {
+		$lists = $this->doGetLists();
+		foreach ($lists as $list) {
+			$this->setListName($list);
+			$ret = $ret && $this->deleteSubscriber($subscriberEmail);
+		}
+
+		return $ret;
+	}
+
 	public function addPoster($posterEmail) {
 		$this->checkValidEmail($posterEmail);
 		$this->authAdapter->requireModerator();
