@@ -1697,6 +1697,13 @@ class Ezmlm implements EzmlmInterface {
 
 	public function deleteSubscriberFromAllLists($subscriberEmail) {
 		$lists = $this->doGetLists();
+		$ret = true;
+
+		// remove postmaster list (useless list)
+		if (($key = array_search('postmaster', $lists)) !== false) {
+			unset($lists[$key]);
+		}
+
 		foreach ($lists as $list) {
 			$this->setListName($list);
 			$ret = $ret && $this->deleteSubscriber($subscriberEmail);
