@@ -1743,6 +1743,9 @@ class Ezmlm implements EzmlmInterface {
 		// info needed :
 		// 1) from (logged-in person's email address + alias)
 		$authFrom = $this->authAdapter->getUserEmail();
+		if (empty($authFrom)) {
+			throw new Exception("thou shalt not be anonymous");
+		}
 		$from = $authFrom;
 		if (isset($data['from'])) {
 			$from = $data['from'];
