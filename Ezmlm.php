@@ -887,6 +887,14 @@ class Ezmlm implements EzmlmInterface {
 		if ($text) {
 			$text = $this->utfize($text);
 		}
+        $html = $parser->getMessageBody('html');
+        if ($html){
+            $html = $this->utfize($html);
+        }
+        $htmlEmbedded = $parser->getMessageBody('htmlEmbedded');
+        if ($htmlEmbedded){
+            $htmlEmbedded = $this->utfize($htmlEmbedded);
+        }
 
 		$attachments = $parser->getAttachments();
 		$attachmentsArray = array();
@@ -906,6 +914,8 @@ class Ezmlm implements EzmlmInterface {
 
 		return array(
 			'text' => $text,
+            'html' => $html,
+            'htmlEmbedded' => $htmlEmbedded,
 			'attachments' => $attachmentsArray
 		);
 	}
