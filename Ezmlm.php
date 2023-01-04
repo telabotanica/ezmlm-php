@@ -784,7 +784,18 @@ class Ezmlm implements EzmlmInterface {
 					$message["message_contents"]["text"] = $this->abstractize($message["message_contents"]["text"]);
 				}
 				$messages[] = $message;
-			}
+			} elseif (isset($message["message_contents"]) &&
+                isset($message["message_contents"]["html"]) &&
+                preg_match($pregPattern, $message["message_contents"]["html"])
+            ) {
+                // if contents was not asked, remove it from results @TODO manage contents=abstract
+                if ($contents == false) {
+                    unset($message["message_contents"]);
+                } elseif ($contents == 'abstract') {
+                    $message["message_contents"]["html"] = $this->abstractize($message["message_contents"]["html"]);
+                }
+                $messages[] = $message;
+            }
 		}
 		// sort
 		usort($messages, array($this, 'sortMessagesById' . ucfirst($sort)));
@@ -908,6 +919,8 @@ class Ezmlm implements EzmlmInterface {
 
 		if ($abstract) {
 			$text = $this->abstractize($text);
+            $html = $this->abstractize($html);
+            $htmlEmbedded = $this->abstractize($htmlEmbedded);
 		}
 
 		$text = $this->cleanMessageText($text);
